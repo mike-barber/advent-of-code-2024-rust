@@ -29,6 +29,17 @@ members = [
     "day25",
 ]
 
+[workspace.dependencies]
+anyhow = "1.0"
+arrayvec = "0.7"
+indoc = "2.0"
+itertools = "0.13"
+nom = "7.1"
+regex = "1.11"
+strum = "0.26.3"
+strum_macros = "0.26.3"
+
+
 [profile.release]
 opt-level = 3
 #lto = true

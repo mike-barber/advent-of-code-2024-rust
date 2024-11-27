@@ -4,3 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+common = { path = "../common" }
+anyhow = { workspace = true }
+arrayvec = { workspace = true }
+indoc = { workspace = true }
+itertools = { workspace = true }
+nom = { workspace = true }
+regex = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }

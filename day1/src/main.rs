@@ -1,5 +1,7 @@
 use std::{collections::HashMap, iter};
 
+use common::OptionAnyhow;
+
 fn main() -> anyhow::Result<()> {
     let text = common::read_file("input1.txt")?;
 
@@ -8,8 +10,14 @@ fn main() -> anyhow::Result<()> {
 
     for l in text.lines() {
         let mut fields = l.split_whitespace();
-        let left: i32 = fields.next().unwrap().parse().unwrap();
-        let right: i32 = fields.next().unwrap().parse().unwrap();
+        let left: i32 = fields
+            .next()
+            .expect_anyhow("left number missing")?
+            .parse()?;
+        let right: i32 = fields
+            .next()
+            .expect_anyhow("right number missing")?
+            .parse()?;
         left_list.push(left);
         right_list.push(right);
     }

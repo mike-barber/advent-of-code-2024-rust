@@ -1,13 +1,14 @@
 fn main() -> anyhow::Result<()> {
     let text = common::read_file("input1.txt")?;
-    let reports: Vec<_> = text
+    let reports: Result<Vec<_>, _> = text
         .lines()
         .map(|l| {
             l.split_whitespace()
-                .map(|n| n.parse().unwrap())
-                .collect::<Vec<i32>>()
+                .map(|n| n.parse())
+                .collect::<Result<Vec<i32>, _>>()
         })
         .collect();
+    let reports = reports?;
 
     let safe_count_1 = reports
         .iter()

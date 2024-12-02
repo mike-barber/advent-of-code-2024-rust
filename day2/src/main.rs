@@ -1,6 +1,6 @@
 fn main() -> anyhow::Result<()> {
     let text = common::read_file("input1.txt")?;
-    let input: Vec<_> = text
+    let reports: Vec<_> = text
         .lines()
         .map(|l| {
             l.split_whitespace()
@@ -9,13 +9,13 @@ fn main() -> anyhow::Result<()> {
         })
         .collect();
 
-    let safe_count_1 = input
+    let safe_count_1 = reports
         .iter()
         .filter(|report| safe_part_1(report.as_slice()))
         .count();
     println!("Part 1 safe count: {}", safe_count_1);
 
-    let safe_count_2 = input
+    let safe_count_2 = reports
         .iter()
         .filter(|report| safe_part_2(report.as_slice()))
         .count();
@@ -34,18 +34,17 @@ fn safe_part_1(report: &[i32]) -> bool {
 }
 
 fn safe_part_2(report: &[i32]) -> bool {
-    // check original case
+    // original case
     if safe_part_1(report) {
         return true;
     }
 
-    // brute force removing one element at a time, and not worrying about
-    // efficiency (like allocations) at all...
+    // brute force removing one element at a time
     for idx_removed in 0..report.len() {
-        let mut report = report.to_vec();
-        report.remove(idx_removed);
+        let mut dampened = report.to_vec();
+        dampened.remove(idx_removed);
 
-        if safe_part_1(&report) {
+        if safe_part_1(&dampened) {
             return true;
         }
     }

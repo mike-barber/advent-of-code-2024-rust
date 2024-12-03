@@ -1,3 +1,12 @@
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{anychar, digit1},
+    combinator::{map, map_res},
+    multi::many_till,
+    sequence::tuple,
+    IResult,
+};
 use regex::Regex;
 
 fn main() -> anyhow::Result<()> {
@@ -8,6 +17,9 @@ fn main() -> anyhow::Result<()> {
 
     let sum_part2 = part2(&text)?;
     println!("part 2 sum is {sum_part2}");
+
+    let sum_part2 = part2_nom(&text)?;
+    println!("part 2 sum (using nom) is {sum_part2}");
 
     Ok(())
 }
@@ -48,6 +60,50 @@ fn part2(input: &str) -> anyhow::Result<i32> {
     Ok(sum)
 }
 
+#[derive(Debug, Clone)]
+enum Element {
+    Do,
+    DoNot,
+    Mul(i32, i32),
+}
+
+fn parse_mul(input: &str) -> IResult<&str, Element> {
+    tuple((
+        tag("mul("),
+        map_res(digit1, |s: &str| s.parse()),
+        tag(","),
+        map_res(digit1, |s: &str| s.parse()),
+        tag(")"),
+    ))(input)
+    .map(|(rem, (.., l, _, r, _))| (rem, Element::Mul(l, r)))
+}
+
+fn parse_element(input: &str) -> IResult<&str, Element> {
+    alt((
+        map(tag("don't"), |_| Element::DoNot),
+        map(tag("do"), |_| Element::Do),
+        parse_mul,
+    ))(input)
+}
+
+fn part2_nom(input: &str) -> anyhow::Result<i32> {
+    let mut rem = input;
+
+    let mut enabled = true;
+    let mut sum = 0;
+    while let Ok((newrem, (_, elem))) = many_till(anychar, parse_element)(rem) {
+        rem = newrem;
+        (sum, enabled) = match elem {
+            Element::Do => (sum, true),
+            Element::DoNot => (sum, false),
+            Element::Mul(a, b) if enabled => (sum + a * b, enabled),
+            _ => (sum, enabled),
+        }
+    }
+
+    Ok(sum)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::*;
@@ -65,6 +121,12 @@ mod tests {
     #[test]
     fn part2_correct() {
         let sum = part2(EXAMPLE).unwrap();
+        assert_eq!(sum, 48);
+    }
+
+    #[test]
+    fn part2_correct_nom() {
+        let sum = part2_nom(EXAMPLE).unwrap();
         assert_eq!(sum, 48);
     }
 }

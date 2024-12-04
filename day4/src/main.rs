@@ -9,7 +9,14 @@ struct Problem {
 }
 
 impl Problem {
-    fn characters(&self, x: usize, y: usize, max_length: usize, dir: Dir, buf: &mut String) {
+    fn characters_along(
+        &self,
+        x: usize,
+        y: usize,
+        max_length: usize,
+        line_direction: Dir,
+        buf: &mut String,
+    ) {
         buf.clear();
 
         let mut x = x as i32;
@@ -22,8 +29,8 @@ impl Problem {
             && buf.len() < max_length
         {
             buf.push(self.matrix[y as usize][x as usize]);
-            x += dir.0;
-            y += dir.1;
+            x += line_direction.0;
+            y += line_direction.1;
         }
     }
 }
@@ -58,7 +65,7 @@ fn part1(problem: &Problem) -> usize {
     for dir in &dirs {
         for x in 0..problem.cols {
             for y in 0..problem.rows {
-                problem.characters(x, y, 4, *dir, &mut buf);
+                problem.characters_along(x, y, 4, *dir, &mut buf);
                 let found = buf == "XMAS" || buf == "SAMX";
                 if found {
                     count += 1;

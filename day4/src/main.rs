@@ -1,5 +1,3 @@
-//use regex::Regex;
-
 #[derive(Debug, Copy, Clone)]
 struct Dir(i32, i32);
 
@@ -33,6 +31,9 @@ fn main() -> anyhow::Result<()> {
     let count_part1 = part1(&problem);
     println!("Part 1 count is {count_part1}");
 
+    let count_part2 = part2(&problem);
+    println!("Part 2 count is {count_part2}");
+
     Ok(())
 }
 
@@ -56,9 +57,9 @@ fn parse(input: &str) -> Problem {
     Problem { matrix, rows, cols }
 }
 
+// not optimal by any means, but it's small enough to work
 fn part1(problem: &Problem) -> usize {
     let dirs = directions();
-    //let re = Regex::new(r#"XMAS"#).unwrap();
 
     let mut buf = String::new();
     let mut count = 0;
@@ -67,15 +68,36 @@ fn part1(problem: &Problem) -> usize {
             for y in 0..problem.rows {
                 problem.characters(x, y, *dir, &mut buf);
                 let found = buf.starts_with("XMAS");
-                // let found = re.find_iter(&buf).count();
                 if found {
-                    //println!("{x},{y} dir {dir:?} buf {buf}");
-                    count += 1; 
+                    count += 1;
                 }
             }
         }
     }
+    count
+}
 
+// this could be neater; pity the Direction abstraction wasn't useful here
+fn part2(problem: &Problem) -> usize {
+    let mut count = 0;
+    for x in 1..problem.cols - 1 {
+        for y in 1..problem.rows - 1 {
+            if problem.matrix[y][x] == 'A' {
+                let tl = problem.matrix[y - 1][x - 1];
+                let tr = problem.matrix[y - 1][x + 1];
+                let bl = problem.matrix[y + 1][x - 1];
+                let br = problem.matrix[y + 1][x + 1];
+
+                let matches = |a, b| matches!((a, b), ('M', 'S') | ('S', 'M'));
+                let diag_down = matches(tl, br);
+                let diag_up = matches(bl, tr);
+
+                if diag_up && diag_down {
+                    count += 1
+                }
+            }
+        }
+    }
     count
 }
 
@@ -119,5 +141,9 @@ mod tests {
     }
 
     #[test]
-    fn part2_correct() {}
+    fn part2_correct() {
+        let problem = parse(EXAMPLE);
+        let count = part2(&problem);
+        assert_eq!(count, 9);
+    }
 }

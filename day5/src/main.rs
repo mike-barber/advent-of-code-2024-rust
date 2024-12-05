@@ -2,6 +2,8 @@ use std::{cmp::Ordering, collections::HashMap, num::ParseIntError, str::FromStr}
 
 use anyhow::anyhow;
 
+// unique key that ignores order of a,b by canonicalizing so that
+// the first `Key` field is the smaller of the in the `Rule`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 struct Key(usize, usize);
 impl From<&Rule> for Key {
@@ -28,8 +30,6 @@ impl FromStr for Rule {
     }
 }
 impl Rule {
-    // unique key that ignores order of a,b by canonicalizing so that
-    // the first `Key` field is the smaller of the in the `Rule`
     fn key(&self) -> Key {
         Key::from(self)
     }

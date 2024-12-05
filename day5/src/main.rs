@@ -4,6 +4,16 @@ use anyhow::anyhow;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 struct Key(usize, usize);
+impl From<&Rule> for Key {
+    fn from(value: &Rule) -> Self {
+        let Rule(a, b) = value;
+        match a.cmp(b) {
+            Ordering::Less => Key(*a, *b),
+            Ordering::Equal => Key(*a, *b),
+            Ordering::Greater => Key(*b, *a),
+        }
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 struct Rule(usize, usize);
@@ -18,13 +28,10 @@ impl FromStr for Rule {
     }
 }
 impl Rule {
-    // unique key that ignores order of a,b
+    // unique key that ignores order of a,b by canonicalizing so that
+    // the first `Key` field is the smaller of the in the `Rule`
     fn key(&self) -> Key {
-        match self.0.cmp(&self.1) {
-            Ordering::Less => Key(self.0, self.1),
-            Ordering::Equal => Key(self.0, self.1),
-            Ordering::Greater => Key(self.1, self.0),
-        }
+        Key::from(self)
     }
 
     fn rev(&self) -> Rule {
@@ -117,7 +124,6 @@ fn parse(input: &str) -> anyhow::Result<Problem> {
     Ok(Problem { rules, updates })
 }
 
-// not optimal by any means, but it's small enough to work
 fn part1(problem: &Problem) -> usize {
     let solver = Solver::new(&problem.rules);
 
@@ -132,7 +138,6 @@ fn part1(problem: &Problem) -> usize {
     count
 }
 
-// this could be neater; pity the Direction abstraction wasn't useful here
 fn part2(problem: &Problem) -> usize {
     let solver = Solver::new(&problem.rules);
 

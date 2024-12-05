@@ -60,10 +60,7 @@ impl Solver {
     fn compare(&self, a: usize, b: usize) -> Ordering {
         let rule = Rule(a, b);
         let key = rule.key();
-        let ordering_rule = self
-            .rules
-            .get(&key)
-            .expect("missing rule for");
+        let ordering_rule = self.rules.get(&key).expect("missing rule");
 
         if rule == *ordering_rule {
             Ordering::Less
@@ -105,7 +102,7 @@ fn parse(input: &str) -> anyhow::Result<Problem> {
     let mut lines = input.lines();
 
     let mut rules = vec![];
-    while let Some(l) = lines.next() {
+    for l in lines.by_ref() {
         if l.is_empty() {
             break;
         }
@@ -113,7 +110,7 @@ fn parse(input: &str) -> anyhow::Result<Problem> {
     }
 
     let mut updates = vec![];
-    while let Some(l) = lines.next() {
+    for l in lines.by_ref() {
         updates.push(l.parse::<PageUpdates>()?);
     }
 

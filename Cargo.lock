@@ -52,6 +52,7 @@ dependencies = [
  "arrayvec",
  "indoc",
  "itertools",
+ "nalgebra",
  "nom",
  "regex",
  "strum",

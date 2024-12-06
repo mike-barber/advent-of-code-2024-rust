@@ -1,14 +1,21 @@
 use std::collections::HashSet;
 
 use anyhow::bail;
-use common::OptionAnyhow;
-use day6::{Point, ScreenDir};
+use common::{
+    cartesian::{matrix_from_lines, Point, ScreenDir},
+    OptionAnyhow,
+};
 use nalgebra::DMatrix;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum Block {
     Empty,
     Wall,
+}
+impl Default for Block {
+    fn default() -> Self {
+        Self::Empty
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -31,27 +38,17 @@ enum Termination {
 fn parse_input(input: &str) -> anyhow::Result<Problem> {
     let lines: Vec<_> = input.lines().collect();
 
-    let rows = lines.len();
-    let cols = lines.iter().map(|l| l.chars().count()).max().ok_anyhow()?;
-
     // load map
-    let mut map = DMatrix::from_element(rows, cols, Block::Empty);
     let mut guard = None;
-    for row in 0..rows {
-        let line = lines[row];
-        for (col, ch) in line.chars().enumerate() {
-            let block_type = match ch {
-                '.' => Block::Empty,
-                '^' => Block::Empty,
-                '#' => Block::Wall,
-                _ => bail!("unexpected map character: {}", ch),
-            };
-            map[(row, col)] = block_type;
-        }
-    }
+    let map = matrix_from_lines(&lines, |ch| match ch {
+        '.' => Ok(Block::Empty),
+        '^' => Ok(Block::Empty),
+        '#' => Ok(Block::Wall),
+        _ => bail!("unexpected map character: {}", ch),
+    })?;
 
     // locate guard - planning on refactoring above later, so keeping this separate
-    for row in 0..rows {
+    for row in 0..lines.len() {
         let line = lines[row];
         for (col, ch) in line.chars().enumerate() {
             if ch == '^' {
@@ -101,7 +98,7 @@ fn part2(problem: &Problem) -> usize {
                 // insert temporary block
                 problem_temp.map.copy_from(&problem.map);
                 problem_temp.map[(r, c)] = Block::Wall;
-                
+
                 // iterate and check for infinite loop
                 match iterate(&problem_temp, &mut visited) {
                     Termination::Loop => loop_termination_count += 1,
@@ -136,10 +133,9 @@ fn iterate(problem: &Problem, visited: &mut HashSet<Guard>) -> Termination {
             break;
         }
     }
-    
-    return Termination::Exited
-}
 
+    return Termination::Exited;
+}
 
 fn main() -> anyhow::Result<()> {
     let text = common::read_file("input1.txt")?;

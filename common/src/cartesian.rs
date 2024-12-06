@@ -4,7 +4,7 @@ use std::{
     ops::{Add, Mul, Sub},
 };
 
-use nalgebra::DMatrix;
+use nalgebra::{DMatrix, Scalar};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ScreenDir {
@@ -95,10 +95,10 @@ impl Point {
         self.try_into().ok()
     }
 
-    pub fn to_coord_matrix<T>(self, matrix: &DMatrix::<T>) -> Option<(usize, usize)> {
-        let (r,c) = self.try_into().ok()?;     
+    pub fn to_coord_matrix<T>(self, matrix: &DMatrix<T>) -> Option<(usize, usize)> {
+        let (r, c) = self.try_into().ok()?;
         if r < matrix.nrows() && c < matrix.ncols() {
-            Some((r,c))
+            Some((r, c))
         } else {
             None
         }
@@ -154,4 +154,25 @@ impl From<ScreenDir> for Point {
         let (x, y) = value.delta();
         Point { x, y }
     }
+}
+
+pub fn matrix_from_lines<T>(
+    lines: &[&str],
+    mapping: impl Fn(char) -> anyhow::Result<T>,
+) -> anyhow::Result<DMatrix<T>>
+where
+    T: Default + Scalar,
+{
+    let rows = lines.len();
+    let cols = lines.iter().map(|l| l.chars().count()).max().unwrap();
+
+    let mut map = DMatrix::from_element(rows, cols, T::default());
+    for row in 0..rows {
+        let line = lines[row];
+        for (col, ch) in line.chars().enumerate() {
+            map[(row, col)] = mapping(ch)?;
+        }
+    }
+
+    Ok(map)
 }

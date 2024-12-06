@@ -14,3 +14,4 @@ nom = { workspace = true }
 regex = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
+nalgebra = { workspace = true }

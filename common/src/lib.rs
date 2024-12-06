@@ -1,5 +1,7 @@
 use std::{fs::File, io::Read};
 
+pub mod cartesian;
+
 use anyhow::anyhow;
 
 pub fn read_file(file_name: &str) -> anyhow::Result<String> {

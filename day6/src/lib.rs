@@ -1,7 +1,10 @@
 use std::{
     fmt::Display,
+    num::TryFromIntError,
     ops::{Add, Mul, Sub},
 };
+
+use nalgebra::DMatrix;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ScreenDir {
@@ -55,10 +58,10 @@ impl ScreenDir {
     // returns row and column
     fn delta(&self) -> (i64, i64) {
         match self {
-            ScreenDir::R => (0, 1),
-            ScreenDir::D => (1, 0),
-            ScreenDir::L => (0, -1),
-            ScreenDir::U => (-1, 0),
+            ScreenDir::R => (1, 0),
+            ScreenDir::L => (-1, 0),
+            ScreenDir::D => (0, 1),
+            ScreenDir::U => (0, -1),
         }
     }
 }
@@ -88,8 +91,17 @@ impl Point {
         Self { x, y }
     }
 
-    pub fn to_coord(self) -> (usize, usize) {
-        self.into()
+    pub fn to_coord(self) -> Option<(usize, usize)> {
+        self.try_into().ok()
+    }
+
+    pub fn to_coord_matrix<T>(self, matrix: &DMatrix::<T>) -> Option<(usize, usize)> {
+        let (r,c) = self.try_into().ok()?;     
+        if r < matrix.nrows() && c < matrix.ncols() {
+            Some((r,c))
+        } else {
+            None
+        }
     }
 }
 impl Add for Point {
@@ -125,12 +137,15 @@ impl From<CompassDir> for Point {
     }
 }
 
-impl From<Point> for (usize, usize) {
-    fn from(value: Point) -> (usize, usize) {
-        let x = value.x.try_into().expect("invalid x coordinate");
-        let y = value.y.try_into().expect("invalid y coordinate");
+impl TryFrom<Point> for (usize, usize) {
+    type Error = TryFromIntError;
+
+    fn try_from(value: Point) -> Result<Self, Self::Error> {
+        let x = value.x.try_into()?;
+        let y = value.y.try_into()?;
+
         // note matrix coordinates are (row,col)
-        (y, x)
+        Ok((y, x))
     }
 }
 

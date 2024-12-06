@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::time::Instant;
 
 use anyhow::bail;
 use common::{
@@ -48,8 +48,7 @@ fn parse_input(input: &str) -> anyhow::Result<Problem> {
     })?;
 
     // locate guard - planning on refactoring above later, so keeping this separate
-    for row in 0..lines.len() {
-        let line = lines[row];
+    for (row, line) in lines.iter().enumerate() {
         for (col, ch) in line.chars().enumerate() {
             if ch == '^' {
                 let (y, x) = (row as i64, col as i64);
@@ -67,15 +66,15 @@ fn parse_input(input: &str) -> anyhow::Result<Problem> {
 fn part1(problem: &Problem) -> usize {
     let mut guard = problem.guard;
 
-    let mut visited = HashSet::new();
-    visited.insert(guard.0);
+    let mut visited = DMatrix::from_element(problem.map.nrows(), problem.map.ncols(), false);
+    visited[guard.0.to_coord().unwrap()] = true;
     loop {
         let next_pos = guard.0 + Point::from(guard.1);
 
         if let Some(coord) = next_pos.to_coord_matrix(&problem.map) {
             let block = problem.map[coord];
             if block == Block::Empty {
-                visited.insert(next_pos);
+                visited[coord] = true;
                 guard.0 = next_pos;
             } else {
                 guard.1 = guard.1.right();
@@ -85,13 +84,13 @@ fn part1(problem: &Problem) -> usize {
         }
     }
 
-    visited.len()
+    visited.iter().filter(|v| **v).count()
 }
 
 fn part2(problem: &Problem) -> usize {
     let mut loop_termination_count = 0;
     let mut problem_temp = problem.clone();
-    let mut visited = HashSet::new();
+    let mut visited = DMatrix::from_element(problem.map.nrows(), problem.map.ncols(), None);
     for c in 0..problem.map.ncols() {
         for r in 0..problem.map.nrows() {
             if problem.map[(r, c)] == Block::Empty {
@@ -100,9 +99,8 @@ fn part2(problem: &Problem) -> usize {
                 problem_temp.map[(r, c)] = Block::Wall;
 
                 // iterate and check for infinite loop
-                match iterate(&problem_temp, &mut visited) {
-                    Termination::Loop => loop_termination_count += 1,
-                    _ => (),
+                if let Termination::Loop = iterate(&problem_temp, &mut visited) {
+                    loop_termination_count += 1
                 }
             }
         }
@@ -110,31 +108,33 @@ fn part2(problem: &Problem) -> usize {
     loop_termination_count
 }
 
-fn iterate(problem: &Problem, visited: &mut HashSet<Guard>) -> Termination {
+fn iterate(problem: &Problem, visited: &mut DMatrix<Option<ScreenDir>>) -> Termination {
     let mut guard = problem.guard;
-    visited.clear();
-    visited.insert(guard);
+    visited.fill(None);
+    visited[guard.0.to_coord().unwrap()] = Some(guard.1);
     loop {
         let next_pos = guard.0 + Point::from(guard.1);
         if let Some(coord) = next_pos.to_coord_matrix(&problem.map) {
             let block = problem.map[coord];
             if block == Block::Empty {
+                // same location, same direction - we're in a loop
+                if let Some(dir) = visited[coord] {
+                    if dir == guard.1 {
+                        return Termination::Loop;
+                    }
+                }
+                visited[coord] = Some(guard.1);
+
+                // update position
                 guard.0 = next_pos;
             } else {
                 guard.1 = guard.1.right();
-            }
-
-            if visited.contains(&guard) {
-                return Termination::Loop;
-            } else {
-                visited.insert(guard);
             }
         } else {
             break;
         }
     }
-
-    return Termination::Exited;
+    Termination::Exited
 }
 
 fn main() -> anyhow::Result<()> {
@@ -142,11 +142,13 @@ fn main() -> anyhow::Result<()> {
 
     let problem = parse_input(&text)?;
 
+    let t1 = Instant::now();
     let count_part1 = part1(&problem);
-    println!("Part 1 count is {count_part1}");
+    println!("Part 1 count is {count_part1} in {:?}", t1.elapsed());
 
+    let t2 = Instant::now();
     let count_part2 = part2(&problem);
-    println!("Part 2 count is {count_part2}");
+    println!("Part 2 count is {count_part2} in {:?}", t2.elapsed());
 
     Ok(())
 }

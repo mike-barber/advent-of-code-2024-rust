@@ -38,36 +38,38 @@ fn parse_input(input: &str) -> Result<Problem> {
     Ok(Problem { equations })
 }
 
-fn concatenate(a: i64, b: i64) -> i64 {
+fn concatenate(a: i64, b: i64) -> Option<i64> {
     let mut btemp = b;
     let mut a = a * 10;
     while btemp.abs() >= 10 {
         btemp /= 10;
-        a *= 10;
+        a = a.checked_mul(10)?;
     }
-    a + b
+    a.checked_add(b)
 }
 
-fn evaluate_left_right(values: &[i64], operators: &[Op]) -> i64 {
+fn evaluate_left_right(values: &[i64], operators: &[Op]) -> Option<i64> {
     let mut vit = values.iter();
     let mut v = *vit.next().unwrap();
 
     for (a, op) in std::iter::zip(vit, operators.iter()) {
         v = match *op {
-            Op::Add => v + a,
-            Op::Multiply => v * a,
-            Op::Concatenate => concatenate(v, *a),
+            Op::Add => v.checked_add(*a)?,
+            Op::Multiply => v.checked_mul(*a)?,
+            Op::Concatenate => concatenate(v, *a)?,
         }
     }
 
-    v
+    Some(v)
 }
 
 fn part1_solve(equation: &Equation, operators: &[Op], available_ops: &[Op]) -> bool {
     // terminal case
     if operators.len() == equation.numbers.len() - 1 {
-        let evaluated = evaluate_left_right(equation.numbers.as_slice(), operators);
-        return evaluated == equation.test_value;
+        return match evaluate_left_right(equation.numbers.as_slice(), operators) {
+            Some(v) => v == equation.test_value,
+            None => false,
+        }
     }
 
     // DFS
@@ -159,9 +161,9 @@ mod tests {
 
     #[test]
     fn concatenate_correct() {
-        assert_eq!(concatenate(1, 1), 11);
-        assert_eq!(concatenate(1, 0), 10);
-        assert_eq!(concatenate(0, 1), 1);
-        assert_eq!(concatenate(15, 6), 156);
+        assert_eq!(concatenate(1, 1).unwrap(), 11);
+        assert_eq!(concatenate(1, 0).unwrap(), 10);
+        assert_eq!(concatenate(0, 1).unwrap(), 1);
+        assert_eq!(concatenate(15, 6).unwrap(), 156);
     }
 }

@@ -2,7 +2,7 @@ use anyhow::Result;
 use arrayvec::ArrayVec;
 use common::OptionAnyhow;
 use itertools::Itertools;
-use std::{ptr::eq, time::Instant};
+use std::time::Instant;
 
 #[derive(Debug, Clone)]
 struct Equation {
@@ -19,6 +19,7 @@ struct Problem {
 enum Op {
     Add,
     Multiply,
+    Concatenate
 }
 
 type OpsVec = ArrayVec<Op, 16>;
@@ -37,6 +38,16 @@ fn parse_input(input: &str) -> Result<Problem> {
     Ok(Problem { equations })
 }
 
+fn concatenate(a: i64, b: i64) -> i64 {
+    let mut btemp = b;
+    let mut a = a * 10;
+    while btemp.abs() >= 10 {
+        btemp /= 10;
+        a *= 10;
+    }
+    a + b
+}
+
 fn evaluate_left_right(values: &[i64], operators: &[Op]) -> i64 {
     let mut vit = values.iter();
     let mut v = *vit.next().unwrap();
@@ -45,13 +56,14 @@ fn evaluate_left_right(values: &[i64], operators: &[Op]) -> i64 {
         v = match *op {
             Op::Add => v + a,
             Op::Multiply => v * a,
+            Op::Concatenate => concatenate(v, *a)
         }
     }
 
     v
 }
 
-fn part1_solve(equation: &Equation, operators: &[Op]) -> bool {
+fn part1_solve(equation: &Equation, operators: &[Op], available_ops: &[Op]) -> bool {
     // terminal case
     if operators.len() == equation.numbers.len() - 1 {
         let evaluated = evaluate_left_right(equation.numbers.as_slice(), operators);
@@ -59,11 +71,11 @@ fn part1_solve(equation: &Equation, operators: &[Op]) -> bool {
     }
 
     // DFS
-    for op in [Op::Add, Op::Multiply] {
+    for op in available_ops.iter().copied() {
         let mut ops: OpsVec = operators.iter().copied().collect();
         ops.push(op);
 
-        if part1_solve(equation, ops.as_slice()) {
+        if part1_solve(equation, ops.as_slice(), available_ops) {
             return true;
         }
     }
@@ -72,9 +84,10 @@ fn part1_solve(equation: &Equation, operators: &[Op]) -> bool {
 }
 
 fn part1(problem: &Problem) -> Result<i64> {
+    let available_ops = [Op::Add, Op::Multiply];
     let mut sum = 0;
     for eq in problem.equations.iter() {
-        if part1_solve(eq, &[]) {
+        if part1_solve(eq, &[], &available_ops) {
             sum += eq.test_value;
         }
     }
@@ -82,7 +95,16 @@ fn part1(problem: &Problem) -> Result<i64> {
 }
 
 fn part2(problem: &Problem) -> Result<i64> {
-    todo!()
+    let available_ops = [Op::Add, Op::Multiply, Op::Concatenate];
+    let mut sum = 0;
+    for eq in problem.equations.iter() {
+        if part1_solve(eq, &[], &available_ops) {
+            sum += eq.test_value;
+        }
+    }
+    Ok(sum)
+
+
 }
 
 fn main() -> anyhow::Result<()> {
@@ -133,6 +155,14 @@ mod tests {
     fn part2_correct() {
         let problem = parse_input(EXAMPLE).unwrap();
         let count = part2(&problem).unwrap();
-        assert_eq!(count, 0);
+        assert_eq!(count, 11387);
+    }
+
+    #[test]
+    fn concatenate_correct() {
+        assert_eq!(concatenate(1, 1), 11);
+        assert_eq!(concatenate(1, 0), 10);
+        assert_eq!(concatenate(0, 1), 1);
+        assert_eq!(concatenate(15, 6), 156);
     }
 }

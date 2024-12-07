@@ -19,7 +19,7 @@ struct Problem {
 enum Op {
     Add,
     Multiply,
-    Concatenate
+    Concatenate,
 }
 
 type OpsVec = ArrayVec<Op, 16>;
@@ -56,7 +56,7 @@ fn evaluate_left_right(values: &[i64], operators: &[Op]) -> i64 {
         v = match *op {
             Op::Add => v + a,
             Op::Multiply => v * a,
-            Op::Concatenate => concatenate(v, *a)
+            Op::Concatenate => concatenate(v, *a),
         }
     }
 
@@ -80,7 +80,7 @@ fn part1_solve(equation: &Equation, operators: &[Op], available_ops: &[Op]) -> b
         }
     }
 
-    return false;
+    false
 }
 
 fn part1(problem: &Problem) -> Result<i64> {
@@ -103,8 +103,6 @@ fn part2(problem: &Problem) -> Result<i64> {
         }
     }
     Ok(sum)
-
-
 }
 
 fn main() -> anyhow::Result<()> {
@@ -123,8 +121,9 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::*;
     use indoc::indoc;
 
     const EXAMPLE: &str = indoc! {"

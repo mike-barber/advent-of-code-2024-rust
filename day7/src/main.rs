@@ -122,6 +122,16 @@ mod smart {
         remaining_numbers: &[i64],
         available_ops: &[Op],
     ) -> bool {
+        // terminal case
+        if remaining_numbers.is_empty() {
+            return test_case == current_val;
+        }
+
+        // early break - numbers only increase
+        if current_val > test_case {
+            return false;
+        }
+
         // DFS
         for op in available_ops.iter().copied() {
             let (&a, next_remaining) = remaining_numbers.split_first().unwrap();
@@ -133,16 +143,6 @@ mod smart {
 
             match next_val {
                 Some(v) => {
-                    // early break - numbers only increase
-                    if v > test_case {
-                        return false;
-                    }
-
-                    // terminal case
-                    if next_remaining.is_empty() {
-                        return test_case == v;
-                    }
-
                     if solve(test_case, v, next_remaining, available_ops) {
                         return true;
                     }

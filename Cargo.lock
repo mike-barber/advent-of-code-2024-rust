@@ -60,6 +60,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "day-template"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arrayvec",
+ "common",
+ "indoc",
+ "itertools",
+ "nom",
+ "regex",
+ "strum",
+ "strum_macros",
+]
+
+[[package]]
 name = "day1"
 version = "0.1.0"
 dependencies = [

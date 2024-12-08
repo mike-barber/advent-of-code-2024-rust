@@ -418,6 +418,7 @@ dependencies = [
  "common",
  "indoc",
  "itertools",
+ "nalgebra",
  "nom",
  "regex",
  "strum",

@@ -103,6 +103,10 @@ impl Point {
             None
         }
     }
+
+    pub fn within_bounds<T>(self, matrix:  &DMatrix<T>) -> bool {
+        self.to_coord_matrix(matrix).is_some()
+    }
 }
 impl Add for Point {
     type Output = Point;
@@ -123,6 +127,17 @@ impl Mul for Point {
 
     fn mul(self, rhs: Self) -> Self::Output {
         Point::new(self.x * rhs.x, self.y * rhs.y)
+    }
+}
+
+/// convert matrix coordinates (r,c) to point (x,y)
+impl From<(usize, usize)> for Point {
+    fn from(value: (usize, usize)) -> Self {
+        let (y, x) = value;
+        Point {
+            x: x as i64,
+            y: y as i64,
+        }
     }
 }
 

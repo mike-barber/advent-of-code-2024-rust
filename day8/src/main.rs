@@ -2,7 +2,7 @@ use anyhow::Result;
 use common::cartesian::{matrix_from_lines, Point};
 use itertools::Itertools;
 use nalgebra::DMatrix;
-use std::{collections::HashMap, path::Display, time::Instant};
+use std::{collections::HashMap, iter::successors, time::Instant};
 
 type AntennaMap = DMatrix<AntennaElement>;
 type AntinodeMap = DMatrix<AntinodeElement>;
@@ -17,7 +17,6 @@ impl std::fmt::Display for AntinodeElement {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AntennaElement {
@@ -53,7 +52,7 @@ fn parse_input(input: &str) -> Result<Problem> {
     Ok(Problem { map })
 }
 
-fn part1(problem: &Problem) -> Result<usize> {
+fn count_antinodes(problem: &Problem, exclude_antenna: bool, harmonics: usize) -> Result<usize> {
     let map = &problem.map;
     let mut antinodes = AntinodeMap::from_element(map.nrows(), map.ncols(), AntinodeElement(false));
 
@@ -75,12 +74,24 @@ fn part1(problem: &Problem) -> Result<usize> {
             let a = pair[0];
             let b = pair[1];
             let delta = a - b;
-            let n1 = b + delta * Point::new(2, 2);
-            let n2 = a - delta * Point::new(2, 2);
-            if let Some(coord) = n1.to_coord_matrix(&antinodes) {
+
+            let init_offset = match exclude_antenna {
+                true => delta,
+                false => Point::default(),
+            };
+
+            // iterate through harmonics until we run off the map or number required
+            for coord in successors(Some(a + init_offset), |p| Some(*p + delta))
+                .take(harmonics)
+                .filter_map(|pt| pt.to_coord_matrix(map))
+            {
                 antinodes[coord] = AntinodeElement(true);
             }
-            if let Some(coord) = n2.to_coord_matrix(&antinodes) {
+
+            for coord in successors(Some(b - init_offset), |p| Some(*p - delta))
+                .take(harmonics)
+                .filter_map(|pt| pt.to_coord_matrix(map))
+            {
                 antinodes[coord] = AntinodeElement(true);
             }
         }
@@ -89,14 +100,19 @@ fn part1(problem: &Problem) -> Result<usize> {
     // count antinodes on map
     let num_antinodes = antinodes.iter().filter(|n| n.0).count();
 
-    println!("{}", map);
-    println!("{}", antinodes);
+    // println!("{}", map);
+    // println!("{}", antinodes);
 
     Ok(num_antinodes)
 }
 
+fn part1(problem: &Problem) -> Result<usize> {
+    count_antinodes(problem, true, 1)
+}
+
 fn part2(problem: &Problem) -> Result<usize> {
-    Ok(2)
+    let max_harmonics = problem.map.nrows().max(problem.map.ncols());
+    count_antinodes(problem, false, max_harmonics)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -153,7 +169,7 @@ mod tests {
     fn part2_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
         let count = part2(&problem)?;
-        assert_eq!(count, 2);
+        assert_eq!(count, 34);
         Ok(())
     }
 }

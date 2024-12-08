@@ -81,18 +81,18 @@ fn count_antinodes(problem: &Problem, exclude_antenna: bool, harmonics: usize) -
             };
 
             // iterate through harmonics until we run off the map or number required
-            for coord in successors(Some(a + init_offset), |p| Some(*p + delta))
-                .take(harmonics)
-                .filter_map(|pt| pt.to_coord_matrix(map))
-            {
-                antinodes[coord] = AntinodeElement(true);
+            for pt in successors(Some(a + init_offset), |p| Some(*p + delta)).take(harmonics) {
+                match antinodes.get_mut(pt) {
+                    Some(v) => *v = AntinodeElement(true),
+                    None => break,
+                }
             }
 
-            for coord in successors(Some(b - init_offset), |p| Some(*p - delta))
-                .take(harmonics)
-                .filter_map(|pt| pt.to_coord_matrix(map))
-            {
-                antinodes[coord] = AntinodeElement(true);
+            for pt in successors(Some(b - init_offset), |p| Some(*p - delta)).take(harmonics) {
+                match antinodes.get_mut(pt) {
+                    Some(v) => *v = AntinodeElement(true),
+                    None => break,
+                }
             }
         }
     }

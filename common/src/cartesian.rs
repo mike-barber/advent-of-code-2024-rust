@@ -4,7 +4,10 @@ use std::{
     ops::{Add, Mul, Sub},
 };
 
-use nalgebra::{DMatrix, Scalar};
+use nalgebra::{
+    indexing::{MatrixIndex, MatrixIndexMut},
+    DMatrix, Dim, Matrix, RawStorage, RawStorageMut, Scalar,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ScreenDir {
@@ -104,7 +107,7 @@ impl Point {
         }
     }
 
-    pub fn within_bounds<T>(self, matrix:  &DMatrix<T>) -> bool {
+    pub fn within_bounds<T>(self, matrix: &DMatrix<T>) -> bool {
         self.to_coord_matrix(matrix).is_some()
     }
 }
@@ -168,6 +171,61 @@ impl From<ScreenDir> for Point {
     fn from(value: ScreenDir) -> Self {
         let (x, y) = value.delta();
         Point { x, y }
+    }
+}
+
+// permit `Point` to be used as a matrix index
+impl<'a, T: 'a, R, C, S> MatrixIndex<'a, T, R, C, S> for Point
+where
+    R: Dim,
+    C: Dim,
+    S: RawStorage<T, R, C>,
+{
+    type Output = &'a T;
+
+    #[doc(hidden)]
+    #[inline(always)]
+    fn contained_by(&self, matrix: &Matrix<T, R, C, S>) -> bool {
+        match self.to_coord() {
+            Some(coord) => coord.contained_by(matrix),
+            None => false,
+        }
+    }
+
+    #[doc(hidden)]
+    #[inline(always)]
+    unsafe fn get_unchecked(self, matrix: &'a Matrix<T, R, C, S>) -> Self::Output {
+        match self.to_coord() {
+            Some(coord) => coord.get_unchecked(matrix),
+            None => panic!("Point out of bounds"),
+        }
+    }
+}
+
+// permit `Point` to be used as a mutable matrix index
+impl<'a, T: 'a, R, C, S> MatrixIndexMut<'a, T, R, C, S> for Point
+where
+    R: Dim,
+    C: Dim,
+    S: RawStorageMut<T, R, C>,
+{
+    type OutputMut = &'a mut T;
+
+    #[doc(hidden)]
+    #[inline(always)]
+    unsafe fn get_unchecked_mut(self, matrix: &'a mut Matrix<T, R, C, S>) -> Self::OutputMut
+    where
+        S: RawStorageMut<T, R, C>,
+    {
+        let (row, col) = (self.y as usize, self.x as usize);
+        matrix.data.get_unchecked_mut(row, col)
+    }
+
+    fn get_mut(self, matrix: &'a mut Matrix<T, R, C, S>) -> Option<Self::OutputMut> {
+        match self.to_coord() {
+            Some(coord) => coord.get_mut(matrix),
+            None => None,
+        }
     }
 }
 

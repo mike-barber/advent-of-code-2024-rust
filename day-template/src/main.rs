@@ -6,7 +6,7 @@ use anyhow::Result;
 pub struct Problem {}
 
 fn parse_input(input: &str) -> Result<Problem> {
-    Ok(Problem{})
+    Ok(Problem {})
 }
 
 fn part1(problem: &Problem) -> Result<usize> {

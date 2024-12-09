@@ -1,4 +1,4 @@
-use std::{ops::RangeInclusive, time::Instant};
+use std::{ops::Range, time::Instant};
 
 use anyhow::Result;
 use common::OptionAnyhow;
@@ -25,9 +25,13 @@ fn parse_input(input: &str) -> Result<Problem> {
 
     let mut rem = input.trim();
     let mut id = 0;
-    while rem.len() > 0 {
+    while !rem.is_empty() {
         let (len, r) = rem.split_at(1);
-        let (free_after, r) = if r.len() > 0 { r.split_at(1) } else { ("0", r) };
+        let (free_after, r) = if !r.is_empty() {
+            r.split_at(1)
+        } else {
+            ("0", r)
+        };
         let len = len.parse()?;
         let free_after = free_after.parse()?;
         let record = Record {
@@ -56,7 +60,7 @@ fn create_disk(files: &[Record]) -> Vec<Option<i32>> {
 }
 
 #[allow(dead_code)]
-fn print_disk_map(disk: &[Option<i32>]) {
+fn disk_map(disk: &[Option<i32>]) -> String {
     let mut disk_map = String::new();
     for x in disk.iter() {
         match x {
@@ -67,14 +71,18 @@ fn print_disk_map(disk: &[Option<i32>]) {
             None => disk_map.push('.'),
         }
     }
-    println!("{}", disk_map);
+    disk_map
+}
+#[allow(dead_code)]
+fn print_disk_map(disk: &[Option<i32>]) {
+    println!("{}", disk_map(disk));
 }
 
 fn checksum_disk(disk: &[Option<i32>]) -> usize {
     let mut sum: usize = 0;
-    for i in 0..disk.len() {
-        if let Some(id) = disk[i] {
-            sum = sum.checked_add(i as usize * id as usize).unwrap();
+    for (i, id) in disk.iter().enumerate() {
+        if let Some(id) = id {
+            sum = sum.checked_add(i * *id as usize).unwrap();
         }
     }
     sum
@@ -104,12 +112,53 @@ fn part1(problem: &Problem) -> Result<usize> {
     Ok(checksum_disk(&disk))
 }
 
-fn part2(problem: &Problem) -> Result<usize> {
+/// Brute-force, copy-stuff-around approach that works
+fn part2_brute(problem: &Problem) -> Result<usize> {
+    fn find_id(disk: &[Option<i32>], id: i32) -> Option<Range<usize>> {
+        if let Some(start) = disk.iter().position(|x| x == &Some(id)) {
+            let end = disk[start..].iter().take_while(|x| *x == &Some(id)).count();
+            let end = end + start;
+            Some(start..end)
+        } else {
+            None
+        }
+    }
+
+    fn find_space(disk: &[Option<i32>], required_len: usize) -> Option<usize> {
+        disk.windows(required_len)
+            .position(|w| w.iter().all(|x| x.is_none()))
+    }
+
+    let mut disk = create_disk(&problem.files);
+    //print_disk_map(&disk);
+
+    let max_id = problem.files.last().ok_anyhow()?.id;
+    for id in (1..=max_id).rev() {
+        // find the file we are considering moving
+        let range_id = find_id(&disk, id).ok_anyhow()?;
+
+        // find a potential location to the left of it
+        let search_space = &disk[0..range_id.start];
+        let required_len = range_id.clone().count();
+        assert_eq!(required_len, problem.files[id as usize].len as usize);
+        if let Some(dest) = find_space(search_space, required_len) {
+            // move elements
+            disk.copy_within(range_id.clone(), dest);
+            // "delete" old
+            disk[range_id.clone()].fill(None);
+        }
+    }
+
+    //print_disk_map(&disk);
+    Ok(checksum_disk(&disk))
+}
+
+/// This works, and is much more efficient, but required me to do the brute force
+/// approach first in order to debug it. It passed the tests fine. Although a more
+/// extensive set of my own unit tests would have revealed the problem.
+fn part2_smarter(problem: &Problem) -> Result<usize> {
     let mut files = problem.files.clone();
-    println!("{files:?}");
     let initial_disk = create_disk(&files);
-    println!("initial length {}", initial_disk.len());
-    print_disk_map(&initial_disk);
 
     let max_id = files.last().ok_anyhow()?.id;
     for id in (2..=max_id).rev() {
@@ -123,13 +172,9 @@ fn part2(problem: &Problem) -> Result<usize> {
             .map(|(i, _)| i);
 
         match dest_prior {
-            Some(dest_prior) if dest_prior < cur_prior => {
-                // if we found a location to move it to, do the space accounting first, then do the move
-                println!(
-                    "{}[{:?}] -> {}[{:?}]",
-                    cur, files[cur], dest_prior, files[dest_prior]
-                );
-
+            // we can move the file left into any space where it fits, including
+            // the free space after the node immediately to the left of it.
+            Some(dest_prior) if dest_prior <= cur_prior => {
                 // existing location - give the space taken and space free to the prior node
                 files[cur_prior].free_after =
                     files[cur_prior].free_after + files[cur].len + files[cur].free_after;
@@ -146,60 +191,15 @@ fn part2(problem: &Problem) -> Result<usize> {
                 let file = files.remove(cur);
                 files.insert(dest_prior + 1, file);
             }
-            _ => {
-                println!("{}[{:?}] -- not moving --", cur, files[cur]);
-            }
+            _ => {}
         }
     }
 
     let disk = create_disk(&files);
     let sum = checksum_disk(&disk);
-    print_disk_map(&disk);
-
-    println!("final length {}", disk.len());
     assert_eq!(disk.len(), initial_disk.len());
 
     Ok(sum)
-}
-
-fn part2_brute(problem: &Problem) -> Result<usize> {
-    fn find_id(disk: &[Option<i32>], id: i32) -> Option<RangeInclusive<usize>> {
-        if let Some(start) = disk.iter().position(|x| x == &Some(id)) {
-            let end = disk[start..].iter().take_while(|x| *x == &Some(id)).count();
-            let end = end + start - 1;
-            Some(start..=end)
-        } else {
-            None
-        }
-    }
-
-    fn find_space(disk: &[Option<i32>], required_len: usize) -> Option<usize> {
-        disk.windows(required_len as usize)
-            .position(|w| w.iter().all(|x| x.is_none()))
-    }
-
-    let mut disk = create_disk(&problem.files);
-    print_disk_map(&disk);
-
-    let max_id = problem.files.last().ok_anyhow()?.id;
-    for id in (1..=max_id).rev() {
-        // find the file we are considering moving
-        let range_id = find_id(&disk, id).ok_anyhow()?;
-
-        // find a potential location to the left of it
-        let search_space = &disk[0..*range_id.start()];
-        let required_len = range_id.clone().count();
-        assert_eq!(required_len, problem.files[id as usize].len as usize);
-        if let Some(dest) = find_space(search_space, required_len) {
-            // move elements
-            disk.copy_within(range_id.clone(), dest);
-            // "delete" old
-            disk[range_id.clone()].fill(None);
-        }
-    }
-
-    print_disk_map(&disk);
-    Ok(checksum_disk(&disk))
 }
 
 fn main() -> anyhow::Result<()> {
@@ -211,24 +211,18 @@ fn main() -> anyhow::Result<()> {
     println!("Part 1 result is {count_part1} (took {:?})", t.elapsed());
 
     let t = Instant::now();
-    let count_part2 = part2(&problem)?;
-    println!("Part 2 result is {count_part2} (took {:?})", t.elapsed());
+    let count_part2 = part2_brute(&problem)?;
+    println!(
+        "Part 2 (brute) result is {count_part2} (took {:?})",
+        t.elapsed()
+    );
 
     let t = Instant::now();
-    let count_part2 = part2_brute(&problem)?;
-    println!("Part 2 (brute) result is {count_part2} (took {:?})", t.elapsed());
-
-    {
-        let mut rem = text.trim();
-        let mut total = 0;
-        while !rem.is_empty() {
-            let (first, r) = rem.split_at(1);
-            rem = r;
-            let num: i32 = first.parse()?;
-            total += num;
-        }
-        println!("total {}", total);
-    }
+    let count_part2 = part2_smarter(&problem)?;
+    println!(
+        "Part 2 (smart) result is {count_part2} (took {:?})",
+        t.elapsed()
+    );
 
     Ok(())
 }
@@ -256,9 +250,9 @@ mod tests {
     }
 
     #[test]
-    fn part2_correct() -> Result<()> {
+    fn part2_smarter_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
-        let count = part2(&problem)?;
+        let count = part2_smarter(&problem)?;
         assert_eq!(count, 2858);
         Ok(())
     }

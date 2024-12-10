@@ -2,7 +2,7 @@ use std::{collections::HashSet, time::Instant};
 
 use anyhow::Result;
 use common::cartesian::{matrix_from_lines, Point, ScreenDir};
-use nalgebra::{indexing::MatrixIndex, DMatrix};
+use nalgebra::DMatrix;
 
 type Map = DMatrix<i32>;
 
@@ -30,7 +30,7 @@ fn parse_input(input: &str) -> Result<Problem> {
 
 const DIRS: &[ScreenDir] = &[ScreenDir::R, ScreenDir::L, ScreenDir::U, ScreenDir::D];
 
-fn find_trails_from(map: &Map, cur: Point) -> Option<HashSet<Point>> {
+fn find_trail_terminations_from(map: &Map, cur: Point) -> Option<HashSet<Point>> {
     // termination
     if map.get(cur) == Some(&9) {
         let mut set = HashSet::new();
@@ -48,7 +48,7 @@ fn find_trails_from(map: &Map, cur: Point) -> Option<HashSet<Point>> {
                 continue;
             }
 
-            if let Some(mut next_found) = find_trails_from(map, next) {
+            if let Some(next_found) = find_trail_terminations_from(map, next) {
                 found = match found {
                     Some(mut f) => {
                         for p in next_found.iter() {
@@ -67,18 +67,45 @@ fn find_trails_from(map: &Map, cur: Point) -> Option<HashSet<Point>> {
 fn part1(problem: &Problem) -> Result<usize> {
     let mut total = 0;
     for head in problem.trail_heads.iter().copied() {
-        let found = find_trails_from(&problem.map, head);
+        let found = find_trail_terminations_from(&problem.map, head);
         if let Some(found) = found {
             let count = found.len();
-            println!("{head:?} -> {count}");
             total += count;
         }
     }
     Ok(total)
 }
 
+fn find_trail_paths_from(map: &Map, cur: Point) -> usize {
+    // termination
+    if map.get(cur) == Some(&9) {
+        return 1;
+    }
+
+    // explore
+    let mut found = 0;
+    let cur_height = *map.get(cur).unwrap();
+    for dir in DIRS {
+        let next = cur + Point::from(*dir);
+        if let Some(next_height) = map.get(next) {
+            if *next_height - cur_height != 1 {
+                continue;
+            }
+
+            let next_found = find_trail_paths_from(map, next);
+            found += next_found;
+        }
+    }
+    found
+}
+
 fn part2(problem: &Problem) -> Result<usize> {
-    Ok(2)
+    let mut total = 0;
+    for head in problem.trail_heads.iter().copied() {
+        let found = find_trail_paths_from(&problem.map, head);
+        total += found;
+    }
+    Ok(total)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -123,7 +150,7 @@ mod tests {
     #[test]
     fn count_from_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
-        let points = find_trails_from(&problem.map, Point::new(4,2)).ok_anyhow()?;
+        let points = find_trail_terminations_from(&problem.map, Point::new(4, 2)).ok_anyhow()?;
         assert_eq!(5, points.len());
         Ok(())
     }
@@ -140,7 +167,7 @@ mod tests {
     fn part2_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
         let count = part2(&problem)?;
-        assert_eq!(count, 2);
+        assert_eq!(count, 81);
         Ok(())
     }
 }

@@ -30,16 +30,16 @@ fn parse_input(input: &str) -> Result<Problem> {
 
 const DIRS: &[ScreenDir] = &[ScreenDir::R, ScreenDir::L, ScreenDir::U, ScreenDir::D];
 
-fn find_trail_terminations_from(map: &Map, cur: Point) -> Option<HashSet<Point>> {
+fn find_trail_from<A, F>(map: &Map, cur: Point, mut acc: A, acc_fn: F) -> A
+where
+    F: Copy + Fn(A, Point) -> A,
+{
     // termination
     if map.get(cur) == Some(&9) {
-        let mut set = HashSet::new();
-        set.insert(cur);
-        return Some(set);
+        return acc_fn(acc, cur);
     }
 
     // explore
-    let mut found: Option<HashSet<Point>> = None;
     let cur_height = *map.get(cur).unwrap();
     for dir in DIRS {
         let next = cur + Point::from(*dir);
@@ -48,62 +48,30 @@ fn find_trail_terminations_from(map: &Map, cur: Point) -> Option<HashSet<Point>>
                 continue;
             }
 
-            if let Some(next_found) = find_trail_terminations_from(map, next) {
-                found = match found {
-                    Some(mut f) => {
-                        for p in next_found.iter() {
-                            f.insert(*p);
-                        }
-                        Some(f)
-                    }
-                    None => Some(next_found),
-                }
-            }
+            acc = find_trail_from(map, next, acc, acc_fn);
         }
     }
-    found
+    acc
 }
 
 fn part1(problem: &Problem) -> Result<usize> {
     let mut total = 0;
     for head in problem.trail_heads.iter().copied() {
-        let found = find_trail_terminations_from(&problem.map, head);
-        if let Some(found) = found {
-            let count = found.len();
-            total += count;
-        }
+        let found = find_trail_from(&problem.map, head, HashSet::new(), |mut acc, p| {
+            acc.insert(p);
+            acc
+        });
+        let count = found.len();
+        total += count;
     }
     Ok(total)
-}
-
-fn find_trail_paths_from(map: &Map, cur: Point) -> usize {
-    // termination
-    if map.get(cur) == Some(&9) {
-        return 1;
-    }
-
-    // explore
-    let mut found = 0;
-    let cur_height = *map.get(cur).unwrap();
-    for dir in DIRS {
-        let next = cur + Point::from(*dir);
-        if let Some(next_height) = map.get(next) {
-            if *next_height - cur_height != 1 {
-                continue;
-            }
-
-            let next_found = find_trail_paths_from(map, next);
-            found += next_found;
-        }
-    }
-    found
 }
 
 fn part2(problem: &Problem) -> Result<usize> {
     let mut total = 0;
     for head in problem.trail_heads.iter().copied() {
-        let found = find_trail_paths_from(&problem.map, head);
-        total += found;
+        let trails_found = find_trail_from(&problem.map, head, 0, |acc, _| acc + 1);
+        total += trails_found;
     }
     Ok(total)
 }
@@ -126,7 +94,6 @@ fn main() -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::OptionAnyhow;
     use indoc::indoc;
 
     const EXAMPLE: &str = indoc! {"
@@ -150,7 +117,15 @@ mod tests {
     #[test]
     fn count_from_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
-        let points = find_trail_terminations_from(&problem.map, Point::new(4, 2)).ok_anyhow()?;
+        let points = find_trail_from(
+            &problem.map,
+            Point::new(4, 2),
+            HashSet::new(),
+            |mut acc, p| {
+                acc.insert(p);
+                acc
+            },
+        );
         assert_eq!(5, points.len());
         Ok(())
     }

@@ -65,6 +65,7 @@ fn part1(problem: &Problem) -> Result<usize> {
     iterate(&problem.stones, 25)
 }
 
+/// Simple recursion that only really works for part 1
 fn iterate_recurse_count(n: i64, remaining_depth: usize) -> usize {
     if remaining_depth == 0 {
         return 1;

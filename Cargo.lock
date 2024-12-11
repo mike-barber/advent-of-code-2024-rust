@@ -112,6 +112,7 @@ dependencies = [
  "anyhow",
  "arrayvec",
  "common",
+ "dlv-list",
  "indoc",
  "itertools",
  "nom",
@@ -440,6 +441,12 @@ dependencies = [
  "strum",
  "strum_macros",
 ]
+
+[[package]]
+name = "dlv-list"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecb08c4819242b1ec89b3d0c6affa229005bef46ae4f7eed8b80768187c10087"
 
 [[package]]
 name = "either"

@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     iter,
     ops::{Div, Rem},
     time::Instant,
@@ -8,6 +7,7 @@ use std::{
 use anyhow::Result;
 use common::OptionAnyhow;
 use dlv_list::VecList;
+use rustc_hash::FxHashMap;
 
 #[derive(Debug, Clone)]
 pub struct Problem {
@@ -89,18 +89,16 @@ fn iterate_recurse_count(n: i64, remaining_depth: usize) -> usize {
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 struct Key(i64, usize);
+type Cache = FxHashMap<Key, usize>;
 
-/// Recursive with memoization
-fn iterate_recurse_count_mem(
-    n: i64,
-    remaining_depth: usize,
-    memory: &mut HashMap<Key, usize>,
-) -> usize {
+/// Recursive with memoization. Large values eventually split to smaller values, so
+/// we don't need to try to memoize everything - just storing the small values is enough.
+fn iterate_recurse_count_mem(n: i64, remaining_depth: usize, memory: &mut Cache) -> usize {
     // termination
     if remaining_depth == 0 {
         return 1;
     }
-    
+
     // already-computed value
     if let Some(mem) = memory.get(&Key(n, remaining_depth)) {
         return *mem;
@@ -124,8 +122,8 @@ fn iterate_recurse_count_mem(
         }
     };
 
-    // store small n in the cache - all single digits
-    if n < 10 {
+    // store smaller values of n in the cache
+    if n <= 1024 {
         memory.insert(Key(n, remaining_depth), count);
     }
 
@@ -134,7 +132,7 @@ fn iterate_recurse_count_mem(
 
 fn part2(problem: &Problem, iterations: usize) -> Result<usize> {
     // memory can be used across multiple calls
-    let mut mem = HashMap::new();
+    let mut mem = Cache::default();
     let mut total = 0;
     for n in &problem.stones {
         total += iterate_recurse_count_mem(*n, iterations, &mut mem);
@@ -150,7 +148,6 @@ fn main() -> anyhow::Result<()> {
     let count_part1 = part1(&problem)?;
     println!("Part 1 result is {count_part1} (took {:?})", t1.elapsed());
 
-  
     // try iterate simple
     let t = Instant::now();
     let nn = iterate_recurse_count(0, 30);
@@ -158,7 +155,7 @@ fn main() -> anyhow::Result<()> {
 
     // try iterate memoized
     let t = Instant::now();
-    let mut mem = HashMap::new();
+    let mut mem = Cache::default();
     let nn = iterate_recurse_count_mem(0, 30, &mut mem);
     println!("{nn} in {:?}", t.elapsed());
 

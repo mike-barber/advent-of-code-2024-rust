@@ -3,27 +3,16 @@ use std::time::Instant;
 use anyhow::Result;
 use common::cartesian::{matrix_from_lines, Point, ScreenDir};
 use nalgebra::DMatrix;
+use strum::IntoEnumIterator;
 
 type PlantMap = DMatrix<char>;
 type RegionMap = DMatrix<i32>;
 
 #[derive(Debug, Clone)]
-enum Corner {
-    InsideTL,
-    InsideTR,
-    InsideBL,
-    InsideBR,
-    OutsideTL,
-    OutsideTR,
-    OutsideBL,
-    OutsideBR,
-}
-
-#[derive(Debug, Clone)]
 pub struct Measurement {
     area: usize,
     perimeter: usize,
-    sides: usize
+    sides: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -54,8 +43,9 @@ impl Problem {
         }
     }
 
-    fn corners(&self, loc: Point) -> Vec<Corner> {
-        use ScreenDir::*;
+    fn corners(&self, loc: Point) -> usize {
+        let mut inside_corners = 0;
+        let mut outside_corners = 0;
 
         let ch = self.plants.get(loc).unwrap();
         let diag_different_plant = |d1: ScreenDir, d2: ScreenDir| {
@@ -67,58 +57,20 @@ impl Problem {
             }
         };
 
-        let mut found = vec![];
+        for d in ScreenDir::iter() {
+            let adjacent = d.right();
 
-        let l = self.border(loc, L);
-        let r = self.border(loc, R);
-        let u = self.border(loc, U);
-        let d = self.border(loc, D);
+            let border = self.border(loc, d);
+            let adjacent_border = self.border(loc, adjacent);
+            let diag = diag_different_plant(d, adjacent);
 
-        // Outside / convex corners
-
-        // Outside TL
-        if u & l {
-            found.push(Corner::OutsideTL);
+            if border && adjacent_border {
+                outside_corners += 1;
+            } else if !border && !adjacent_border && diag {
+                inside_corners += 1;
+            }
         }
-
-        // Outside TR
-        if u & r {
-            found.push(Corner::OutsideTR);
-        }
-
-        // Outside BL
-        if d & l {
-            found.push(Corner::OutsideBL);
-        }
-
-        // Outside BR
-        if d & r {
-            found.push(Corner::OutsideBR);
-        }
-
-        // Inside / concave corners
-
-        // Inside TL
-        if !u & !l & diag_different_plant(U, L) {
-            found.push(Corner::InsideTL)
-        }
-
-        // Inside TR
-        if !u & !r & diag_different_plant(U, R) {
-            found.push(Corner::InsideTR)
-        }
-
-        // Inside BL
-        if !d & !l & diag_different_plant(D, L) {
-            found.push(Corner::InsideBL)
-        }
-
-        // Inside BR
-        if !d & !r & diag_different_plant(D, R) {
-            found.push(Corner::InsideBR)
-        }
-
-        found
+        inside_corners + outside_corners
     }
 
     fn explore_region(&self, loc: Point, regions: &mut RegionMap, label: i32) -> Measurement {
@@ -145,7 +97,7 @@ impl Problem {
             // add area & record visited
             area += 1;
             perimeter += self.perimeter(current);
-            corners += self.corners(current).len();
+            corners += self.corners(current);
             *regions.get_mut(current).unwrap() = label;
             //println!("{current:?} {area}");
 
@@ -166,22 +118,21 @@ impl Problem {
             }
         }
 
-        Measurement { area, perimeter, sides: corners }
+        Measurement {
+            area,
+            perimeter,
+            sides: corners,
+        }
     }
 }
 
-fn neighbours(loc: Point) -> [Point; 4] {
-    [
-        loc + ScreenDir::U.into(),
-        loc + ScreenDir::R.into(),
-        loc + ScreenDir::D.into(),
-        loc + ScreenDir::L.into(),
-    ]
+fn neighbours(loc: Point) -> impl Iterator<Item = Point> {
+    ScreenDir::iter().map(move |d| loc + d.into())
 }
 
 fn parse_input(input: &str) -> Result<Problem> {
     let lines: Vec<_> = input.lines().collect();
-    let plants = matrix_from_lines(&lines, |a| Ok(a))?;
+    let plants = matrix_from_lines(&lines, Ok)?;
     Ok(Problem { plants })
 }
 

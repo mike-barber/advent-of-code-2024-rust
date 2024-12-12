@@ -8,8 +8,9 @@ use nalgebra::{
     indexing::{MatrixIndex, MatrixIndexMut},
     DMatrix, Dim, Matrix, RawStorage, RawStorageMut, Scalar,
 };
+use strum_macros::EnumIter;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, EnumIter)]
 pub enum ScreenDir {
     R,
     D,
@@ -69,7 +70,7 @@ impl ScreenDir {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, EnumIter)]
 pub enum CompassDir {
     N,
     S,

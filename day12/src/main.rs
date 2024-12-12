@@ -8,9 +8,22 @@ type PlantMap = DMatrix<char>;
 type RegionMap = DMatrix<i32>;
 
 #[derive(Debug, Clone)]
+enum Corner {
+    InsideTL,
+    InsideTR,
+    InsideBL,
+    InsideBR,
+    OutsideTL,
+    OutsideTR,
+    OutsideBL,
+    OutsideBR,
+}
+
+#[derive(Debug, Clone)]
 pub struct Measurement {
     area: usize,
     perimeter: usize,
+    edges: usize
 }
 
 #[derive(Debug, Clone)]
@@ -31,9 +44,87 @@ impl Problem {
         perim
     }
 
+    fn border(&self, loc: Point, d: ScreenDir) -> bool {
+        let next = loc + d.into();
+        let ch = self.plants.get(loc).unwrap();
+        match self.plants.get(next) {
+            Some(nch) if nch == ch => false,
+            Some(_) => true, // different plant
+            None => true,    // edge of
+        }
+    }
+
+    fn corners(&self, loc: Point) -> Vec<Corner> {
+        use ScreenDir::*;
+
+        let ch = self.plants.get(loc).unwrap();
+        let diag_different_plant = |d1: ScreenDir, d2: ScreenDir| {
+            let next = loc + d1.into() + d2.into();
+            if let Some(nch) = self.plants.get(next) {
+                nch != ch
+            } else {
+                false // not on map
+            }
+        };
+
+        let mut found = vec![];
+
+        let l = self.border(loc, L);
+        let r = self.border(loc, R);
+        let u = self.border(loc, U);
+        let d = self.border(loc, D);
+
+        // Outside / convex corners
+
+        // Outside TL
+        if u & l {
+            found.push(Corner::OutsideTL);
+        }
+
+        // Outside TR
+        if u & r {
+            found.push(Corner::OutsideTR);
+        }
+
+        // Outside BL
+        if d & l {
+            found.push(Corner::OutsideBL);
+        }
+
+        // Outside BR
+        if d & r {
+            found.push(Corner::OutsideBR);
+        }
+
+        // Inside / concave corners
+
+        // Inside TL
+        if !u & !l & diag_different_plant(U, L) {
+            found.push(Corner::OutsideBR)
+        }
+
+        // Inside TR
+        if !u & !r & diag_different_plant(U, R) {
+            found.push(Corner::OutsideBR)
+        }
+
+        // Inside BL
+        if !d & !l & diag_different_plant(D, L) {
+            found.push(Corner::OutsideBR)
+        }
+
+        // Inside BR
+        if !d & !r & diag_different_plant(D, R) {
+            found.push(Corner::OutsideBR)
+        }
+
+        found
+    }
+
     fn explore_region(&self, loc: Point, regions: &mut RegionMap, label: i32) -> Measurement {
         let mut area = 0;
         let mut perimeter = 0;
+        let mut corners = 0;
 
         let mut queue = Vec::new();
         queue.push(loc);
@@ -54,6 +145,7 @@ impl Problem {
             // add area & record visited
             area += 1;
             perimeter += self.perimeter(current);
+            corners += self.corners(current).len();
             *regions.get_mut(current).unwrap() = label;
             //println!("{current:?} {area}");
 
@@ -74,7 +166,7 @@ impl Problem {
             }
         }
 
-        Measurement { area, perimeter }
+        Measurement { area, perimeter, edges: corners }
     }
 }
 
@@ -106,11 +198,11 @@ fn part1(problem: &Problem) -> Result<usize> {
     let mut total_price = 0;
     let mut region_map =
         RegionMap::from_element(problem.plants.nrows(), problem.plants.ncols(), -1);
-    
+
     let mut label = 0;
     for x in 0..problem.plants.ncols() {
         for y in 0..problem.plants.nrows() {
-            let loc = Point::new(x as i64,y as i64);
+            let loc = Point::new(x as i64, y as i64);
             if *region_map.get(loc).unwrap() == -1 {
                 // unexplored -- map this region
                 let measurement = problem.explore_region(loc, &mut region_map, label);
@@ -119,7 +211,6 @@ fn part1(problem: &Problem) -> Result<usize> {
                 label += 1;
                 total_price += measurement.area * measurement.perimeter
             }
-
         }
     }
 
@@ -127,7 +218,26 @@ fn part1(problem: &Problem) -> Result<usize> {
 }
 
 fn part2(problem: &Problem) -> Result<usize> {
-    Ok(2)
+    let mut total_price = 0;
+    let mut region_map =
+        RegionMap::from_element(problem.plants.nrows(), problem.plants.ncols(), -1);
+
+    let mut label = 0;
+    for x in 0..problem.plants.ncols() {
+        for y in 0..problem.plants.nrows() {
+            let loc = Point::new(x as i64, y as i64);
+            if *region_map.get(loc).unwrap() == -1 {
+                // unexplored -- map this region
+                let measurement = problem.explore_region(loc, &mut region_map, label);
+                println!("{loc:?} {measurement:?}");
+                // println!("{region_map}");
+                label += 1;
+                total_price += measurement.area * measurement.edges
+            }
+        }
+    }
+
+    Ok(total_price)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -182,7 +292,7 @@ mod tests {
     fn part2_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
         let count = part2(&problem)?;
-        assert_eq!(count, 2);
+        assert_eq!(count, 1206);
         Ok(())
     }
 }

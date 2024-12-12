@@ -136,8 +136,11 @@ fn parse_input(input: &str) -> Result<Problem> {
     Ok(Problem { plants })
 }
 
-fn part1(problem: &Problem) -> Result<usize> {
-    let mut total_price = 0;
+fn calculate_cost<F>(problem: &Problem, cost_function: F) -> Result<usize>
+where
+    F: Fn(&Measurement) -> usize,
+{
+    let mut total_cost = 0;
     let mut region_map =
         RegionMap::from_element(problem.plants.nrows(), problem.plants.ncols(), -1);
 
@@ -151,35 +154,22 @@ fn part1(problem: &Problem) -> Result<usize> {
                 // println!("{loc:?} {measurement:?}");
                 // println!("{region_map}");
                 label += 1;
-                total_price += measurement.area * measurement.perimeter
+                total_cost += cost_function(&measurement);
             }
         }
     }
 
-    Ok(total_price)
+    Ok(total_cost)
+}
+
+fn part1(problem: &Problem) -> Result<usize> {
+    calculate_cost(problem, |measurement| {
+        measurement.area * measurement.perimeter
+    })
 }
 
 fn part2(problem: &Problem) -> Result<usize> {
-    let mut total_price = 0;
-    let mut region_map =
-        RegionMap::from_element(problem.plants.nrows(), problem.plants.ncols(), -1);
-
-    let mut label = 0;
-    for x in 0..problem.plants.ncols() {
-        for y in 0..problem.plants.nrows() {
-            let loc = Point::new(x as i64, y as i64);
-            if *region_map.get(loc).unwrap() == -1 {
-                // unexplored -- map this region
-                let measurement = problem.explore_region(loc, &mut region_map, label);
-                //println!("{loc:?} {measurement:?}");
-                // println!("{region_map}");
-                label += 1;
-                total_price += measurement.area * measurement.sides
-            }
-        }
-    }
-
-    Ok(total_price)
+    calculate_cost(problem, |measurement| measurement.area * measurement.sides)
 }
 
 fn main() -> anyhow::Result<()> {

@@ -1,4 +1,4 @@
-use std::{convert::identity, time::Instant};
+use std::time::Instant;
 
 use anyhow::Result;
 use common::cartesian::{matrix_from_lines, Point, ScreenDir};
@@ -23,7 +23,7 @@ enum Corner {
 pub struct Measurement {
     area: usize,
     perimeter: usize,
-    edges: usize
+    sides: usize
 }
 
 #[derive(Debug, Clone)]
@@ -100,22 +100,22 @@ impl Problem {
 
         // Inside TL
         if !u & !l & diag_different_plant(U, L) {
-            found.push(Corner::OutsideBR)
+            found.push(Corner::InsideTL)
         }
 
         // Inside TR
         if !u & !r & diag_different_plant(U, R) {
-            found.push(Corner::OutsideBR)
+            found.push(Corner::InsideTR)
         }
 
         // Inside BL
         if !d & !l & diag_different_plant(D, L) {
-            found.push(Corner::OutsideBR)
+            found.push(Corner::InsideBL)
         }
 
         // Inside BR
         if !d & !r & diag_different_plant(D, R) {
-            found.push(Corner::OutsideBR)
+            found.push(Corner::InsideBR)
         }
 
         found
@@ -166,17 +166,8 @@ impl Problem {
             }
         }
 
-        Measurement { area, perimeter, edges: corners }
+        Measurement { area, perimeter, sides: corners }
     }
-}
-
-fn offsets() -> [Point; 4] {
-    [
-        ScreenDir::U.into(),
-        ScreenDir::R.into(),
-        ScreenDir::D.into(),
-        ScreenDir::L.into(),
-    ]
 }
 
 fn neighbours(loc: Point) -> [Point; 4] {
@@ -229,10 +220,10 @@ fn part2(problem: &Problem) -> Result<usize> {
             if *region_map.get(loc).unwrap() == -1 {
                 // unexplored -- map this region
                 let measurement = problem.explore_region(loc, &mut region_map, label);
-                println!("{loc:?} {measurement:?}");
+                //println!("{loc:?} {measurement:?}");
                 // println!("{region_map}");
                 label += 1;
-                total_price += measurement.area * measurement.edges
+                total_price += measurement.area * measurement.sides
             }
         }
     }

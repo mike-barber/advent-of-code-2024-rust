@@ -59,16 +59,16 @@ fn solve_brute(machine: &Machine) -> Option<i64> {
 // is just a simultaneous equation - provided we can find an
 // integer solution, we're good.
 fn solve_equation(machine: &Machine) -> Option<i64> {
-    let x = machine.prize.x as i128;
-    let y = machine.prize.y as i128;
+    let x = machine.prize.x;
+    let y = machine.prize.y;
 
     // x coeffs
-    let c = machine.a.x as i128;
-    let d = machine.b.x as i128;
+    let c = machine.a.x;
+    let d = machine.b.x;
 
     // y coeffs
-    let e = machine.a.y as i128;
-    let f = machine.b.y as i128;
+    let e = machine.a.y;
+    let f = machine.b.y;
 
     // solve for b
     let num_b = y * c - x * e;
@@ -85,7 +85,7 @@ fn solve_equation(machine: &Machine) -> Option<i64> {
     }
     let a = num_a / c;
 
-    i64::try_from(a * A_COST as i128 + b * B_COST as i128).ok()
+    Some(a * A_COST + b * B_COST)
 }
 
 fn part1(problem: &Problem, solver: impl Fn(&Machine) -> Option<i64>) -> Result<i64> {

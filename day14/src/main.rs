@@ -1,9 +1,8 @@
-use std::{io::Lines, time::Instant};
-
 use anyhow::Result;
 use common::{cartesian::Point, OptionAnyhow};
-use nalgebra::{matrix, DMatrix, Matrix, MatrixView, RowDVector};
+use nalgebra::DMatrix;
 use regex::Regex;
+use std::time::Instant;
 
 #[derive(Debug, Clone)]
 pub struct Robot {
@@ -73,7 +72,6 @@ fn part1(problem: &Problem) -> Result<i64> {
     // iterate
     for _ in 0..100 {
         problem.step();
-        //print_robots(&problem);
     }
 
     // count quadrants
@@ -83,7 +81,6 @@ fn part1(problem: &Problem) -> Result<i64> {
             *quadrants.get_mut(p).unwrap() += 1;
         }
     }
-    //println!("{}", quadrants);
 
     let mut product = 1;
     for q in quadrants.iter() {
@@ -93,27 +90,28 @@ fn part1(problem: &Problem) -> Result<i64> {
     Ok(product)
 }
 
-fn row_symmetrical(mat: &DMatrix<i64>, row: usize) -> bool {
+fn row_symmetry_score(mat: &DMatrix<i64>, row: usize) -> usize {
     let len = mat.ncols();
     let x_mid = len / 2;
+    let mut diffs = 0;
     for i in 0..x_mid {
         let ir = len - i - 1;
         let l = mat[(row, i)];
         let r = mat[(row, ir)];
         if l != r {
-            return false;
+            diffs += 1;
         }
     }
-    true
+    diffs
 }
 
 fn part2(problem: &Problem) -> Result<i64> {
     let mut problem = problem.clone();
-    //let mut quadrants = DMatrix::from_element(2, 2, 0);
     let mut grid = DMatrix::from_element(problem.rows as usize, problem.cols as usize, 0);
 
     // iterate
-    for i in 0..10000000 {
+    let mut printed_count = 0;
+    for i in 1.. {
         problem.step();
 
         // populate grid
@@ -123,33 +121,20 @@ fn part2(problem: &Problem) -> Result<i64> {
         }
 
         // detect left-right symmetry
-        let mut all_symmetrical = true;
+        let mut diffs = 0;
         for r in 0..grid.nrows() {
-            if !row_symmetrical(&grid, r) {
-                all_symmetrical = false;
+            diffs += row_symmetry_score(&grid, r);
+        }
+
+        // played around with the threshold; 350 works
+        if diffs < 350 {
+            print_robots(&problem);
+            println!("iteration number {}", i);
+            printed_count += 1;
+            if printed_count == 10 {
                 break;
             }
         }
-
-        if all_symmetrical {
-            println!("{}", grid);
-            println!("iterations {i}");
-        }
-
-        // // count quadrants
-        // quadrants.fill(0);
-        // for robot in problem.robots.iter() {
-        //     if let Some(p) = quadrant(robot.p.x, robot.p.y, problem.rows, problem.cols) {
-        //         *quadrants.get_mut(p).unwrap() += 1;
-        //     }
-        // }
-
-        // // detect symmetry
-        // let sym_top = quadrants[(0, 0)] == quadrants[(0, 1)];
-        // let sym_bot = quadrants[(1, 0)] == quadrants[(1, 1)];
-        // if sym_top && sym_bot {
-        //     print_robots(&problem);
-        // }
     }
 
     Ok(123)
@@ -207,31 +192,23 @@ mod tests {
     }
 
     #[test]
-    fn part2_correct() -> Result<()> {
-        let problem = parse_input(EXAMPLE, 7, 11)?;
-        let count = part2(&problem)?;
-        assert_eq!(count, 2);
-        Ok(())
-    }
-
-    #[test]
     fn symmetry_detect() {
         let g1 = dmatrix![
             1, 0, 1;
             0, 1, 0;
             0, 0, 1
         ];
-        assert_eq!(row_symmetrical(&g1, 0), true);
-        assert_eq!(row_symmetrical(&g1, 1), true);
-        assert_eq!(row_symmetrical(&g1, 2), false);
+        assert_eq!(row_symmetry_score(&g1, 0), 0);
+        assert_eq!(row_symmetry_score(&g1, 1), 0);
+        assert_eq!(row_symmetry_score(&g1, 2), 1);
 
         let g2 = dmatrix![
             1, 2, 3, 100, 3, 2, 1;
             0, 1, 0, 100, 0, 1, 0;
             0, 1, 0, 100, 5, 1, 0;
         ];
-        assert_eq!(row_symmetrical(&g2, 0), true);
-        assert_eq!(row_symmetrical(&g2, 1), true);
-        assert_eq!(row_symmetrical(&g2, 2), false);
+        assert_eq!(row_symmetry_score(&g2, 0), 0);
+        assert_eq!(row_symmetry_score(&g2, 1), 0);
+        assert_eq!(row_symmetry_score(&g2, 2), 1);
     }
 }

@@ -90,6 +90,10 @@ fn part1(problem: &Problem) -> Result<i64> {
     Ok(product)
 }
 
+// This works, but it doesn't work very well. It assumes the tree is 
+// centred, and it is definitely not. Good enough to get a result though.
+// A smarter plan would be to scan for continuous lines, preferably
+// horizontal ones, since the tree has lots of those.
 fn row_symmetry_score(mat: &DMatrix<i64>, row: usize) -> usize {
     let len = mat.ncols();
     let x_mid = len / 2;
@@ -131,7 +135,7 @@ fn part2(problem: &Problem) -> Result<i64> {
             print_robots(&problem);
             println!("iteration number {}", i);
             printed_count += 1;
-            if printed_count == 10 {
+            if printed_count == 5 {
                 break;
             }
         }

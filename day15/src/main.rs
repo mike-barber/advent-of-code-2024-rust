@@ -1,11 +1,9 @@
 use anyhow::{bail, Result};
 use common::cartesian::{Point, ScreenDir};
-use itertools::Itertools;
 use nalgebra::DMatrix;
 use std::{
     collections::{HashMap, HashSet},
     iter,
-    path::Display,
     time::Instant,
 };
 
@@ -35,10 +33,11 @@ impl std::fmt::Display for Problem {
         for r in 0..self.map.nrows() {
             for c in 0..self.map.ncols() {
                 let p = Point::new(c as i64, r as i64);
+                let b = self.map.get(p).unwrap();
                 if p == self.robot {
                     write!(f, "@")?;
+                    assert!(*b == Block::Open);
                 } else {
-                    let b = self.map.get(p).unwrap();
                     let ch = match *b {
                         Block::Open => ".",
                         Block::BoxWhole => "O",
@@ -125,16 +124,7 @@ impl Problem {
         for r in 0..self.map.nrows() {
             for c in 0..self.map.ncols() {
                 if self.map[(r, c)] == Block::BoxL {
-                    let x_left = c;
-                    let x_right = self.map.ncols() - 2 - c;
-                    let x_min = x_left.min(x_right);
-
-                    let y_top = r;
-                    let y_bottom = self.map.nrows() - 1 - r;
-                    let y_min = y_top.min(y_bottom);
-                    
-                    let s = 100 * y_min + x_min;
-                    score += s;
+                    score += 100 * r + c;
                 }
             }
         }
@@ -180,7 +170,7 @@ impl Problem {
             if visited.contains(&p) {
                 continue;
             }
-          
+
             let b = *self.map.get(p).unwrap();
             match dir {
                 // left-right
@@ -279,6 +269,7 @@ fn part1(problem: &Problem) -> Result<usize> {
     for inst in instructions {
         problem.move_robot_part_1(inst);
     }
+    println!("{}", problem);
 
     let score = problem.gps_score();
     Ok(score)
@@ -288,11 +279,8 @@ fn part2(problem: &Problem) -> Result<usize> {
     let mut problem = problem.to_part_2_problem()?;
     let instructions = problem.instructions.clone();
 
-    //println!("{}", problem);
     for inst in instructions {
         problem.move_robot_part_2(inst);
-        //println!("Instruction: {inst}");
-        //println!("{}", problem);
     }
     println!("{}", problem);
 
@@ -347,7 +335,7 @@ mod tests {
     fn part2_small_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE_SMALL_PART2)?;
         let count = part2(&problem)?;
-        assert_eq!(count, 0);
+        assert_eq!(count, 618);
         Ok(())
     }
 

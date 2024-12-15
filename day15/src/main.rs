@@ -1,9 +1,10 @@
 use anyhow::{bail, Result};
-use common::cartesian::{matrix_from_lines, Point, ScreenDir};
+use common::cartesian::{Point, ScreenDir};
+use itertools::Itertools;
 use nalgebra::DMatrix;
-use std::time::Instant;
+use std::{iter, path::Display, time::Instant};
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
 enum Block {
     #[default]
     Open,
@@ -19,6 +20,28 @@ pub struct Problem {
     map: Map,
     robot: Point,
     instructions: Instructions,
+}
+impl std::fmt::Display for Problem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for r in 0..self.map.nrows() {
+            for c in 0..self.map.ncols() {
+                let p = Point::new(c as i64, r as i64);
+                if p == self.robot {
+                    write!(f, "@")?;
+                } else {
+                    let b = self.map.get(p).unwrap();
+                    let ch = match *b {
+                        Block::Open => ".",
+                        Block::Box => "O",
+                        Block::Wall => "#",
+                    };
+                    write!(f, "{}", ch)?;
+                }
+            }
+            writeln!(f)?;
+        }
+        Ok(())
+    }
 }
 
 fn parse_input(input: &str) -> Result<Problem> {
@@ -43,6 +66,7 @@ fn parse_input(input: &str) -> Result<Problem> {
                 }
                 _ => bail!("Unknown block type {}", ch),
             };
+            map[(r, c)] = block;
         }
     }
 
@@ -67,8 +91,63 @@ fn parse_input(input: &str) -> Result<Problem> {
     })
 }
 
+fn dir_iter(loc: Point, dir: ScreenDir) -> impl Iterator<Item = Point> {
+    let dir_pt = dir.into();
+    iter::successors(Some(loc + dir_pt), move |p| Some(*p + dir_pt))
+}
+
+impl Problem {
+    fn move_robot(&mut self, dir: ScreenDir) -> Option<usize> {
+        let p = self.robot;
+
+        let num_boxes = dir_iter(p, dir)
+            .map(|p| self.map.get(p))
+            .take_while(|b| b.copied() == Some(Block::Box))
+            .count();
+
+        let loc_after_boxes = dir_iter(p, dir).nth(num_boxes)?;
+        let block_after_boxes = self.map.get(loc_after_boxes).copied()?;
+        if block_after_boxes != Block::Open {
+            return None;
+        }
+
+        // move the whole chain
+        if num_boxes > 0 {
+            *self.map.get_mut(loc_after_boxes).unwrap() = Block::Box;
+        }
+        let robot_next = dir_iter(p, dir).nth(0).unwrap();
+        *self.map.get_mut(robot_next).unwrap() = Block::Open;
+        self.robot = robot_next;
+
+        Some(num_boxes)
+    }
+
+    fn gps_score(&self) -> usize {
+        let mut score = 0;
+        for r in 0..self.map.nrows() {
+            for c in 0..self.map.ncols() {
+                if self.map[(r,c)] == Block::Box {
+                    score += 100 * r + c
+                }
+            }
+        }
+        score
+    }
+}
+
 fn part1(problem: &Problem) -> Result<usize> {
-    Ok(1)
+    let mut problem = problem.clone();
+    let instructions = problem.instructions.clone();
+
+    //println!("{}", problem);
+    for inst in instructions {
+        problem.move_robot(inst);
+        //println!("Instruction: {inst}");
+        //println!("{}", problem);
+    }
+
+    let score = problem.gps_score();
+    Ok(score)
 }
 
 fn part2(problem: &Problem) -> Result<usize> {
@@ -103,12 +182,21 @@ mod tests {
     }
 
     #[test]
-    fn part1_correct() -> Result<()> {
+    fn part1_small_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE_SMALL)?;
         let count = part1(&problem)?;
-        assert_eq!(count, 1);
+        assert_eq!(count, 2028);
         Ok(())
     }
+
+    #[test]
+    fn part1_correct() -> Result<()> {
+        let problem = parse_input(EXAMPLE)?;
+        let count = part1(&problem)?;
+        assert_eq!(count, 10092);
+        Ok(())
+    }
+
 
     #[test]
     fn part2_correct() -> Result<()> {

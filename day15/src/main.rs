@@ -111,20 +111,9 @@ impl Problem {
         let mut score = 0;
         for r in 0..self.map.nrows() {
             for c in 0..self.map.ncols() {
-                if self.map[(r, c)] == Block::BoxWhole {
-                    score += 100 * r + c
-                }
-            }
-        }
-        score
-    }
-
-    fn gps_score_part_2(&self) -> usize {
-        let mut score = 0;
-        for r in 0..self.map.nrows() {
-            for c in 0..self.map.ncols() {
-                if self.map[(r, c)] == Block::BoxL {
-                    score += 100 * r + c;
+                score += match self.map[(r, c)] {
+                    Block::BoxWhole | Block::BoxL => 100 * r + c,
+                    _ => 0,
                 }
             }
         }
@@ -160,7 +149,7 @@ impl Problem {
         let p = self.robot;
         let dp: Point = dir.into();
 
-        let mut collision_set: HashMap<Point, Block> = HashMap::new();
+        let mut move_set: HashMap<Point, Block> = HashMap::new();
         let mut to_visit = Vec::new();
         let mut visited = HashSet::new();
 
@@ -172,15 +161,18 @@ impl Problem {
             }
 
             let b = *self.map.get(p).unwrap();
+
+            // collision with wall - no move possible
+            if b == Block::Wall {
+                return None;
+            }
+
             match dir {
                 // left-right
                 ScreenDir::L | ScreenDir::R => match b {
                     Block::BoxL | Block::BoxR => {
-                        collision_set.insert(p, b);
+                        move_set.insert(p, b);
                         to_visit.push(p + dp);
-                    }
-                    Block::Wall => {
-                        collision_set.insert(p, Block::Wall);
                     }
                     Block::Open => {}
                     _ => {
@@ -191,20 +183,17 @@ impl Problem {
                 ScreenDir::U | ScreenDir::D => match b {
                     Block::BoxL => {
                         let other_side_box = Point::new(1, 0);
-                        collision_set.insert(p, b);
-                        collision_set.insert(p + other_side_box, Block::BoxR);
+                        move_set.insert(p, b);
+                        move_set.insert(p + other_side_box, Block::BoxR);
                         to_visit.push(p + dp);
                         to_visit.push(p + other_side_box + dp);
                     }
                     Block::BoxR => {
                         let other_side_box = Point::new(-1, 0);
-                        collision_set.insert(p, b);
-                        collision_set.insert(p + other_side_box, Block::BoxL);
+                        move_set.insert(p, b);
+                        move_set.insert(p + other_side_box, Block::BoxL);
                         to_visit.push(p + dp);
                         to_visit.push(p + other_side_box + dp);
-                    }
-                    Block::Wall => {
-                        collision_set.insert(p, Block::Wall);
                     }
                     Block::Open => {}
                     _ => {
@@ -215,25 +204,20 @@ impl Problem {
             visited.insert(p);
         }
 
-        // if the collision set _does not contain_ any walls, move the whole thing.
-        let free_to_move = collision_set.iter().all(|(_, b)| *b != Block::Wall);
-        if free_to_move {
-            // clear map
-            for (p, _b) in collision_set.iter() {
-                *self.map.get_mut(*p).unwrap() = Block::Open;
-            }
-
-            // place boxes again
-            for (p, b) in collision_set.iter() {
-                let p = *p + dp;
-                *self.map.get_mut(p).unwrap() = *b;
-            }
-
-            self.robot = p + dp;
-            return Some(collision_set.len());
+        // at this point, we know we have no collisions with walls; move the whole thing
+        // 1. clear map
+        for (p, _b) in move_set.iter() {
+            *self.map.get_mut(*p).unwrap() = Block::Open;
         }
+        // 2. place boxes in new location
+        for (p, b) in move_set.iter() {
+            let p = *p + dp;
+            *self.map.get_mut(p).unwrap() = *b;
+        }
+        // 3. update robot position
+        self.robot = p + dp;
 
-        None
+        Some(move_set.len())
     }
 
     fn to_part_2_problem(&self) -> Result<Self> {
@@ -284,7 +268,7 @@ fn part2(problem: &Problem) -> Result<usize> {
     }
     println!("{}", problem);
 
-    let score = problem.gps_score_part_2();
+    let score = problem.gps_score();
     Ok(score)
 }
 

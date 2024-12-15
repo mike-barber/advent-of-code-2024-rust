@@ -2,13 +2,22 @@ use anyhow::{bail, Result};
 use common::cartesian::{Point, ScreenDir};
 use itertools::Itertools;
 use nalgebra::DMatrix;
-use std::{iter, path::Display, time::Instant};
+use std::{
+    collections::{HashMap, HashSet},
+    iter,
+    path::Display,
+    time::Instant,
+};
 
 #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
 enum Block {
     #[default]
     Open,
-    Box,
+    // whole box for part 1
+    BoxWhole,
+    // left or right part of box for part 2
+    BoxL,
+    BoxR,
     Wall,
 }
 
@@ -32,7 +41,9 @@ impl std::fmt::Display for Problem {
                     let b = self.map.get(p).unwrap();
                     let ch = match *b {
                         Block::Open => ".",
-                        Block::Box => "O",
+                        Block::BoxWhole => "O",
+                        Block::BoxL => "[",
+                        Block::BoxR => "]",
                         Block::Wall => "#",
                     };
                     write!(f, "{}", ch)?;
@@ -58,7 +69,7 @@ fn parse_input(input: &str) -> Result<Problem> {
         for (c, ch) in line.chars().enumerate() {
             let block = match ch {
                 '#' => Block::Wall,
-                'O' => Block::Box,
+                'O' => Block::BoxWhole,
                 '.' => Block::Open,
                 '@' => {
                     robot = Point::new(c as i64, r as i64);
@@ -97,12 +108,45 @@ fn dir_iter(loc: Point, dir: ScreenDir) -> impl Iterator<Item = Point> {
 }
 
 impl Problem {
-    fn move_robot(&mut self, dir: ScreenDir) -> Option<usize> {
+    fn gps_score(&self) -> usize {
+        let mut score = 0;
+        for r in 0..self.map.nrows() {
+            for c in 0..self.map.ncols() {
+                if self.map[(r, c)] == Block::BoxWhole {
+                    score += 100 * r + c
+                }
+            }
+        }
+        score
+    }
+
+    fn gps_score_part_2(&self) -> usize {
+        let mut score = 0;
+        for r in 0..self.map.nrows() {
+            for c in 0..self.map.ncols() {
+                if self.map[(r, c)] == Block::BoxL {
+                    let x_left = c;
+                    let x_right = self.map.ncols() - 2 - c;
+                    let x_min = x_left.min(x_right);
+
+                    let y_top = r;
+                    let y_bottom = self.map.nrows() - 1 - r;
+                    let y_min = y_top.min(y_bottom);
+                    
+                    let s = 100 * y_min + x_min;
+                    score += s;
+                }
+            }
+        }
+        score
+    }
+
+    fn move_robot_part_1(&mut self, dir: ScreenDir) -> Option<usize> {
         let p = self.robot;
 
         let num_boxes = dir_iter(p, dir)
             .map(|p| self.map.get(p))
-            .take_while(|b| b.copied() == Some(Block::Box))
+            .take_while(|b| b.copied() == Some(Block::BoxWhole))
             .count();
 
         let loc_after_boxes = dir_iter(p, dir).nth(num_boxes)?;
@@ -113,7 +157,7 @@ impl Problem {
 
         // move the whole chain
         if num_boxes > 0 {
-            *self.map.get_mut(loc_after_boxes).unwrap() = Block::Box;
+            *self.map.get_mut(loc_after_boxes).unwrap() = Block::BoxWhole;
         }
         let robot_next = dir_iter(p, dir).nth(0).unwrap();
         *self.map.get_mut(robot_next).unwrap() = Block::Open;
@@ -122,16 +166,109 @@ impl Problem {
         Some(num_boxes)
     }
 
-    fn gps_score(&self) -> usize {
-        let mut score = 0;
+    fn move_robot_part_2(&mut self, dir: ScreenDir) -> Option<usize> {
+        let p = self.robot;
+        let dp: Point = dir.into();
+
+        let mut collision_set: HashMap<Point, Block> = HashMap::new();
+        let mut to_visit = Vec::new();
+        let mut visited = HashSet::new();
+
+        // build set of affected boxes
+        to_visit.push(self.robot + dp);
+        while let Some(p) = to_visit.pop() {
+            if visited.contains(&p) {
+                continue;
+            }
+          
+            let b = *self.map.get(p).unwrap();
+            match dir {
+                // left-right
+                ScreenDir::L | ScreenDir::R => match b {
+                    Block::BoxL | Block::BoxR => {
+                        collision_set.insert(p, b);
+                        to_visit.push(p + dp);
+                    }
+                    Block::Wall => {
+                        collision_set.insert(p, Block::Wall);
+                    }
+                    Block::Open => {}
+                    _ => {
+                        panic!("unexpected block {:?}", b);
+                    }
+                },
+                // up-down
+                ScreenDir::U | ScreenDir::D => match b {
+                    Block::BoxL => {
+                        let other_side_box = Point::new(1, 0);
+                        collision_set.insert(p, b);
+                        collision_set.insert(p + other_side_box, Block::BoxR);
+                        to_visit.push(p + dp);
+                        to_visit.push(p + other_side_box + dp);
+                    }
+                    Block::BoxR => {
+                        let other_side_box = Point::new(-1, 0);
+                        collision_set.insert(p, b);
+                        collision_set.insert(p + other_side_box, Block::BoxL);
+                        to_visit.push(p + dp);
+                        to_visit.push(p + other_side_box + dp);
+                    }
+                    Block::Wall => {
+                        collision_set.insert(p, Block::Wall);
+                    }
+                    Block::Open => {}
+                    _ => {
+                        panic!("unexpected block {:?}", b);
+                    }
+                },
+            }
+            visited.insert(p);
+        }
+
+        // if the collision set _does not contain_ any walls, move the whole thing.
+        let free_to_move = collision_set.iter().all(|(_, b)| *b != Block::Wall);
+        if free_to_move {
+            // clear map
+            for (p, _b) in collision_set.iter() {
+                *self.map.get_mut(*p).unwrap() = Block::Open;
+            }
+
+            // place boxes again
+            for (p, b) in collision_set.iter() {
+                let p = *p + dp;
+                *self.map.get_mut(p).unwrap() = *b;
+            }
+
+            self.robot = p + dp;
+            return Some(collision_set.len());
+        }
+
+        None
+    }
+
+    fn to_part_2_problem(&self) -> Result<Self> {
+        let mut new_map =
+            DMatrix::from_element(self.map.nrows(), self.map.ncols() * 2, Block::Open);
+
         for r in 0..self.map.nrows() {
             for c in 0..self.map.ncols() {
-                if self.map[(r,c)] == Block::Box {
-                    score += 100 * r + c
-                }
+                let (left, right) = match self.map[(r, c)] {
+                    Block::Open => (Block::Open, Block::Open),
+                    Block::BoxWhole => (Block::BoxL, Block::BoxR),
+                    Block::BoxL => bail!("part 1 map should not contain BoxL"),
+                    Block::BoxR => bail!("part 1 map should not contain BoxR"),
+                    Block::Wall => (Block::Wall, Block::Wall),
+                };
+                new_map[(r, 2 * c)] = left;
+                new_map[(r, 2 * c + 1)] = right;
             }
         }
-        score
+
+        Ok(Problem {
+            map: new_map,
+            instructions: self.instructions.clone(),
+            robot: self.robot * Point::new(2, 1),
+        })
     }
 }
 
@@ -139,11 +276,8 @@ fn part1(problem: &Problem) -> Result<usize> {
     let mut problem = problem.clone();
     let instructions = problem.instructions.clone();
 
-    //println!("{}", problem);
     for inst in instructions {
-        problem.move_robot(inst);
-        //println!("Instruction: {inst}");
-        //println!("{}", problem);
+        problem.move_robot_part_1(inst);
     }
 
     let score = problem.gps_score();
@@ -151,7 +285,19 @@ fn part1(problem: &Problem) -> Result<usize> {
 }
 
 fn part2(problem: &Problem) -> Result<usize> {
-    Ok(2)
+    let mut problem = problem.to_part_2_problem()?;
+    let instructions = problem.instructions.clone();
+
+    //println!("{}", problem);
+    for inst in instructions {
+        problem.move_robot_part_2(inst);
+        //println!("Instruction: {inst}");
+        //println!("{}", problem);
+    }
+    println!("{}", problem);
+
+    let score = problem.gps_score_part_2();
+    Ok(score)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -197,12 +343,19 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn part2_small_correct() -> Result<()> {
+        let problem = parse_input(EXAMPLE_SMALL_PART2)?;
+        let count = part2(&problem)?;
+        assert_eq!(count, 0);
+        Ok(())
+    }
 
     #[test]
     fn part2_correct() -> Result<()> {
-        let problem = parse_input(EXAMPLE_SMALL)?;
+        let problem = parse_input(EXAMPLE)?;
         let count = part2(&problem)?;
-        assert_eq!(count, 2);
+        assert_eq!(count, 9021);
         Ok(())
     }
 
@@ -217,6 +370,18 @@ mod tests {
         ########
 
         <^^>>>vv<v>>v<<
+    "};
+
+    const EXAMPLE_SMALL_PART2: &str = indoc! {"
+        #######
+        #...#.#
+        #.....#
+        #..OO@#
+        #..O..#
+        #.....#
+        #######
+
+        <vv<<^^<<^^
     "};
 
     const EXAMPLE: &str = indoc! {"

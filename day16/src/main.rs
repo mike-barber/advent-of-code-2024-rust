@@ -1,8 +1,6 @@
 use std::collections::HashMap;
-use std::default;
-use std::i64;
+use std::collections::HashSet;
 use std::time::Instant;
-use std::usize;
 
 use anyhow::bail;
 use anyhow::Result;
@@ -137,7 +135,43 @@ fn part1(problem: &Problem) -> Result<(i64, DistMap)> {
 }
 
 fn part2(problem: &Problem, dist: DistMap) -> Result<i64> {
-    Ok(2)
+    let mut visited: HashSet<Point> = HashSet::new();
+    let mut q = vec![];
+
+    let ends: Vec<_> = [ScreenDir::U, ScreenDir::D, ScreenDir::L, ScreenDir::R]
+        .iter()
+        .map(|&d| dist.get(&(problem.end, d)).cloned())
+        .collect();
+    let min_cost = ends
+        .iter()
+        .filter_map(|d| d.clone().map(|d| d.cost))
+        .min()
+        .ok_anyhow()?;
+
+    visited.insert(problem.end);
+    for end in ends {
+        if let Some(end) = end {
+            // skip ends where the cost was not the minimum
+            if end.cost != min_cost {
+                continue;
+            }
+            // explore all origins - these are all on the best path
+            for origin in end.origin_states {
+                q.push(origin);
+            }
+        }
+    }
+
+    while let Some((p, dir)) = q.pop() {
+        visited.insert(p);
+
+        let dist = dist.get(&(p, dir)).cloned().unwrap();
+        for origin in dist.origin_states {
+            q.push(origin);
+        }
+    }
+
+    Ok(visited.len() as i64)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -222,9 +256,18 @@ mod tests {
     #[test]
     fn part2_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
-        let (count, dist) = part1(&problem)?;
+        let (_, dist) = part1(&problem)?;
         let count = part2(&problem, dist)?;
-        assert_eq!(count, 2);
+        assert_eq!(count, 45);
+        Ok(())
+    }
+
+    #[test]
+    fn part2_correct_example_2() -> Result<()> {
+        let problem = parse_input(EXAMPLE_2)?;
+        let (_, dist) = part1(&problem)?;
+        let count = part2(&problem, dist)?;
+        assert_eq!(count, 64);
         Ok(())
     }
 }

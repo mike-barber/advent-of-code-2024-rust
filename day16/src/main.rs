@@ -103,21 +103,27 @@ fn part1(problem: &Problem) -> Result<(i64, DistMap)> {
                     let next_state_cost =
                         *dist.get(&next_state).map(|d| &d.cost).unwrap_or(&i64::MAX);
 
-                    if alt < next_state_cost {
-                        // new path to next state
-                        dist.insert(
-                            next_state,
-                            Dist {
-                                cost: alt,
-                                origin_states: [(cur_p, cur_dir)].into_iter().collect(),
-                            },
-                        );
-                        q.push(next_state, -alt);
-                    } else if next_state_cost == alt {
-                        // add current node to origin - equal cost
-                        let next_state_dist = dist.get_mut(&next_state).unwrap();
-                        next_state_dist.origin_states.push((cur_p, cur_dir));
-                        q.push(next_state, -alt);
+                    match alt.cmp(&next_state_cost) {
+                        std::cmp::Ordering::Less => {
+                            // new path to next state
+                            dist.insert(
+                                next_state,
+                                Dist {
+                                    cost: alt,
+                                    origin_states: [(cur_p, cur_dir)].into_iter().collect(),
+                                },
+                            );
+                            q.push(next_state, -alt);
+                        }
+                        std::cmp::Ordering::Equal => {
+                            // add current node to origin - equal cost
+                            let next_state_dist = dist.get_mut(&next_state).unwrap();
+                            next_state_dist.origin_states.push((cur_p, cur_dir));
+                            q.push(next_state, -alt);
+                        }
+                        std::cmp::Ordering::Greater => {
+                            // do nothing - this path is worse
+                        }
                     }
                 }
                 _ => {}
@@ -149,16 +155,14 @@ fn part2(problem: &Problem, dist: DistMap) -> Result<i64> {
         .ok_anyhow()?;
 
     visited.insert(problem.end);
-    for end in ends {
-        if let Some(end) = end {
-            // skip ends where the cost was not the minimum
-            if end.cost != min_cost {
-                continue;
-            }
-            // explore all origins - these are all on the best path
-            for origin in end.origin_states {
-                q.push(origin);
-            }
+    for end in ends.into_iter().flatten() {
+        // skip ends where the cost was not the minimum
+        if end.cost != min_cost {
+            continue;
+        }
+        // explore all origins - these are all on the best path
+        for origin in end.origin_states {
+            q.push(origin);
         }
     }
 

@@ -4,9 +4,9 @@ use std::i64;
 use std::time::Instant;
 use std::usize;
 
-use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Result;
+use arrayvec::ArrayVec;
 use common::cartesian::ScreenDir;
 use common::cartesian::{matrix_from_lines, Point};
 use common::OptionAnyhow;
@@ -61,60 +61,82 @@ fn parse_input(input: &str) -> Result<Problem> {
     Ok(Problem { map, start, end })
 }
 
+type State = (Point, ScreenDir);
+type DistMap = HashMap<State, Dist>;
 
-fn part1(problem: &Problem) -> Result<i64> {
-    type State = (Point, ScreenDir);
-    
+#[derive(Clone, Debug)]
+struct Dist {
+    cost: i64,
+    origin_states: ArrayVec<State, 4>,
+}
+
+fn part1(problem: &Problem) -> Result<(i64, DistMap)> {
     let map = &problem.map;
-    
-    let mut dist: HashMap<State, i64> = HashMap::new();
+
+    let mut dist: DistMap = HashMap::new();
     let mut q = PriorityQueue::new();
-    
-    dist.insert((problem.start, ScreenDir::R), 0);
+
+    dist.insert(
+        (problem.start, ScreenDir::R),
+        Dist {
+            cost: 0,
+            origin_states: ArrayVec::new(),
+        },
+    );
     q.push((problem.start, ScreenDir::R), 0);
 
-
-    while let Some(((cur_p,cur_dir), _)) = q.pop() {
+    while let Some(((cur_p, cur_dir), _)) = q.pop() {
         // get node for this state
-        let cur_cost = dist.get(&(cur_p, cur_dir)).copied().unwrap();
+        let cur_dist = dist.get(&(cur_p, cur_dir)).cloned().unwrap();
 
         // update all reachable nodes
         let moves = [
-            (cur_dir,1),
+            (cur_dir, 1),
             (cur_dir.left(), 1000 + 1),
-            (cur_dir.right(), 1000 + 1)
+            (cur_dir.right(), 1000 + 1),
         ];
         for (dir, cost) in moves {
             let p = cur_p + dir.into();
             match map.get(p).copied() {
                 Some(Block::Open) | Some(Block::End) => {
                     // this distance is current cost + cost
-                let alt = cur_cost + cost;
-                let next_state = (p, dir);
-                if alt < *dist.get(&next_state).unwrap_or(&i64::MAX) {
-                    dist.insert(next_state, alt);
-                    q.push(next_state, -alt);
-                }
+                    let alt = cur_dist.cost + cost;
+                    let next_state = (p, dir);
+                    let next_state_cost =
+                        *dist.get(&next_state).map(|d| &d.cost).unwrap_or(&i64::MAX);
+
+                    if alt < next_state_cost {
+                        // new path to next state
+                        dist.insert(
+                            next_state,
+                            Dist {
+                                cost: alt,
+                                origin_states: [(cur_p, cur_dir)].into_iter().collect(),
+                            },
+                        );
+                        q.push(next_state, -alt);
+                    } else if next_state_cost == alt {
+                        // add current node to origin - equal cost
+                        let next_state_dist = dist.get_mut(&next_state).unwrap();
+                        next_state_dist.origin_states.push((cur_p, cur_dir));
+                        q.push(next_state, -alt);
+                    }
                 }
                 _ => {}
             }
         }
     }
 
-    let mut end_cost = i64::MAX;
-    for d in [ScreenDir::U, ScreenDir::D, ScreenDir::L, ScreenDir::R] {
-        if let Some(&cost) = dist.get(&(problem.end, d)) {
-            if cost < end_cost {
-                end_cost = cost
-            }
-        }
-    }
+    let ends = [ScreenDir::U, ScreenDir::D, ScreenDir::L, ScreenDir::R]
+        .iter()
+        .map(|&d| dist.get(&(problem.end, d)).cloned());
 
-    Ok(end_cost)
+    let min_cost = ends.filter_map(|d| d.map(|d| d.cost)).min().ok_anyhow()?;
 
+    Ok((min_cost, dist))
 }
 
-fn part2(problem: &Problem) -> Result<i64> {
+fn part2(problem: &Problem, dist: DistMap) -> Result<i64> {
     Ok(2)
 }
 
@@ -123,11 +145,11 @@ fn main() -> anyhow::Result<()> {
     let problem = parse_input(&text)?;
 
     let t1 = Instant::now();
-    let count_part1 = part1(&problem)?;
+    let (count_part1, dist) = part1(&problem)?;
     println!("Part 1 result is {count_part1} (took {:?})", t1.elapsed());
 
     let t2 = Instant::now();
-    let count_part2 = part2(&problem)?;
+    let count_part2 = part2(&problem, dist)?;
     println!("Part 2 result is {count_part2} (took {:?})", t2.elapsed());
 
     Ok(())
@@ -185,14 +207,14 @@ mod tests {
     #[test]
     fn part1_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
-        let count = part1(&problem)?;
+        let (count, _) = part1(&problem)?;
         assert_eq!(count, 7036);
         Ok(())
     }
     #[test]
     fn part1_correct_example_2() -> Result<()> {
         let problem = parse_input(EXAMPLE_2)?;
-        let count = part1(&problem)?;
+        let (count, _) = part1(&problem)?;
         assert_eq!(count, 11048);
         Ok(())
     }
@@ -200,7 +222,8 @@ mod tests {
     #[test]
     fn part2_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
-        let count = part2(&problem)?;
+        let (count, dist) = part1(&problem)?;
+        let count = part2(&problem, dist)?;
         assert_eq!(count, 2);
         Ok(())
     }

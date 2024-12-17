@@ -91,25 +91,24 @@ impl Computer {
     /// (So, an operand of 2 would divide A by 4 (2^2); an operand of 5 would divide A by 2^B.) 
     /// The result of the division operation is truncated to an integer and then written to the A register.
     fn adv(&mut self, operand: i64) {
-        let num = self.reg_a;
-        let den = 1i64 << operand;
-        self.reg_a = num / den;
+        let operand = self.combo_operand(operand).unwrap();
+        self.reg_a = self.reg_a >> operand;
         self.ip += 2;
     }
 
-    /// The bdv instruction (opcode 6) works exactly like the adv instruction except that the result is stored in the B register. (The numerator is still read from the A register.)
+    /// The bdv instruction (opcode 6) works exactly like the adv instruction except that the 
+    /// result is stored in the B register. (The numerator is still read from the A register.)
     fn bdv(&mut self, operand: i64) {
-        let num = self.reg_a;
-        let den = 1i64 << operand;
-        self.reg_b = num / den;
+        let operand = self.combo_operand(operand).unwrap();
+        self.reg_b = self.reg_a >> operand;
         self.ip += 2;
     }
 
-    /// The cdv instruction (opcode 7) works exactly like the adv instruction except that the result is stored in the C register. (The numerator is still read from the A register.)
+    /// The cdv instruction (opcode 7) works exactly like the adv instruction except that the 
+    /// result is stored in the C register. (The numerator is still read from the A register.)
     fn cdv(&mut self, operand: i64) {
-        let num = self.reg_a;
-        let den = 1i64 << operand;
-        self.reg_c = num / den;
+        let operand = self.combo_operand(operand).unwrap();
+        self.reg_c = self.reg_a >> operand;
         self.ip += 2;
     }
 
@@ -178,6 +177,8 @@ impl Computer {
                 7 => self.cdv(operand),
                 _ => panic!("unexpected instruction {inst}")
             }
+
+            println!("{ip} {self:?}", ip=self.ip);
         }
     }
 

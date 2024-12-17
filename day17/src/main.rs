@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use common::OptionAnyhow;
 use indoc::indoc;
 use itertools::Itertools;
@@ -20,7 +20,7 @@ pub struct Computer {
     reg_c: i64,
     program: Vec<u8>,
     ip: usize,
-    output: Vec<i64>
+    output: Vec<u8>
 }
 impl Computer {
     fn new(a: i64, b: i64, c: i64, program: Vec<u8>) -> Computer {
@@ -153,7 +153,7 @@ impl Computer {
     fn out(&mut self, operand: i64) {
         // TODO: check for any negative numbers
         let x = self.combo_operand(operand).unwrap() & 0x7; 
-        self.output.push(x);
+        self.output.push(x as u8);
         if self.output.len() > 100 {
             panic!("output too long");
         }
@@ -161,24 +161,25 @@ impl Computer {
         self.ip += 2;
     }
 
+    fn step(&mut self) {
+        let inst = self.program[self.ip] as i64;
+        let operand = self.program[self.ip + 1] as i64;
+        match inst {
+            0 => self.adv(operand),
+            1 => self.bxl(operand),
+            2 => self.bst(operand),
+            3 => self.jnz(operand),
+            4 => self.bxc(operand),
+            5 => self.out(operand),
+            6 => self.bdv(operand),
+            7 => self.cdv(operand),
+            _ => panic!("unexpected instruction {inst}")
+        }
+    }
+
     fn run_program(&mut self) {
         while self.ip < self.program.len() {
-            let inst = self.program[self.ip] as i64;
-            let operand = self.program[self.ip + 1] as i64;
-
-            match inst {
-                0 => self.adv(operand),
-                1 => self.bxl(operand),
-                2 => self.bst(operand),
-                3 => self.jnz(operand),
-                4 => self.bxc(operand),
-                5 => self.out(operand),
-                6 => self.bdv(operand),
-                7 => self.cdv(operand),
-                _ => panic!("unexpected instruction {inst}")
-            }
-
-            println!("{ip} {self:?}", ip=self.ip);
+            self.step();
         }
     }
 
@@ -196,8 +197,44 @@ fn part1(mut computer: Computer) -> Result<String> {
     Ok(computer.format_output())
 }
 
-fn part2(mut _computer: &Computer) -> Result<usize> {
-    Ok(2)
+fn part2(computer: &Computer) -> Result<i64> {
+    let mut candidate = computer.clone();
+
+    for init_a in 0.. {
+        if init_a % 100_000_000 == 0 {
+            println!("{init_a}...");
+        }
+
+        candidate.ip = 0;
+        candidate.output.clear();
+        candidate.reg_a = init_a;
+        candidate.reg_b = computer.reg_b;
+        candidate.reg_c = computer.reg_c;
+
+        while candidate.ip < computer.program.len() {
+            candidate.step();
+
+            // break if output exceeds length of program
+            if candidate.output.len() > computer.program.len() {
+                break;
+            }
+
+            // break if last output differs from program
+            if candidate.output.len() > 0 {
+                let ix = candidate.output.len() - 1;
+                if candidate.output[ix] != computer.program[ix] {
+                    break;
+                }
+            }
+        }
+
+        // check end state
+        if candidate.output == computer.program {
+            return Ok(init_a)
+        }
+    }
+
+    bail!("No solution found")
 }
 
 fn main() -> anyhow::Result<()> {
@@ -227,6 +264,16 @@ mod tests {
 
         Program: 0,1,5,4,3,0
     "};
+
+    const EXAMPLE_P2: &str = indoc! {"
+        Register A: 2024
+        Register B: 0
+        Register C: 0
+
+        Program: 0,3,5,4,3,0
+    "};
+
+    
 
     // If register C contains 9, the program 2,6 would set register B to 1.
     #[test]
@@ -287,9 +334,9 @@ mod tests {
 
     #[test]
     fn part2_correct() -> Result<()> {
-        let problem = parse_input(EXAMPLE)?;
+        let problem = parse_input(EXAMPLE_P2)?;
         let count = part2(&problem)?;
-        assert_eq!(count, 2);
+        assert_eq!(count, 117440);
         Ok(())
     }
 }

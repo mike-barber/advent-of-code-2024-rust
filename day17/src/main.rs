@@ -1,6 +1,6 @@
-use std::{path::Component, time::Instant};
+use std::time::Instant;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use common::OptionAnyhow;
 use indoc::indoc;
 use itertools::Itertools;
@@ -23,7 +23,7 @@ pub struct Computer {
     output: Vec<u8>,
 }
 impl Computer {
-    fn new(a: i64, b: i64, c: i64, program: Vec<u8>) -> Computer {
+    pub fn new(a: i64, b: i64, c: i64, program: Vec<u8>) -> Computer {
         Computer {
             reg_a: a,
             reg_b: b,
@@ -69,6 +69,7 @@ fn parse_input(input: &str) -> Result<Computer> {
     })
 }
 
+#[allow(clippy::assign_op_pattern)]
 impl Computer {
     /// Combo operands 0 through 3 represent literal values 0 through 3.
     /// Combo operand 4 represents the value of register A.
@@ -192,46 +193,11 @@ fn part1(mut computer: Computer) -> Result<String> {
     Ok(computer.format_output())
 }
 
-fn part2(computer: &Computer) -> Result<i64> {
-    let mut candidate = computer.clone();
-
-    for init_a in 0.. {
-        if init_a % 100_000_000 == 0 {
-            println!("{init_a}...");
-        }
-
-        candidate.ip = 0;
-        candidate.output.clear();
-        candidate.reg_a = init_a;
-        candidate.reg_b = computer.reg_b;
-        candidate.reg_c = computer.reg_c;
-
-        while candidate.ip < computer.program.len() {
-            candidate.step();
-
-            // break if output exceeds length of program
-            if candidate.output.len() > computer.program.len() {
-                break;
-            }
-
-            // break if last output differs from program
-            if candidate.output.len() > 0 {
-                let ix = candidate.output.len() - 1;
-                if candidate.output[ix] != computer.program[ix] {
-                    break;
-                }
-            }
-        }
-
-        // check end state
-        if candidate.output == computer.program {
-            return Ok(init_a);
-        }
-    }
-
-    bail!("No solution found")
-}
-
+/// Computer operations coded by hand and analysed on paper.
+/// - single output per loop
+/// - loops back to start with updated a, where next a => a >> 3
+/// - lowest 9 bits are used to compute the output
+/// - so we can build up digits from the end, working back
 fn part_2_hardcoded(computer: Computer) -> Result<i64> {
     fn single_loop(a: i64) -> (i64, i64) {
         let b = a & 0x7;
@@ -244,49 +210,86 @@ fn part_2_hardcoded(computer: Computer) -> Result<i64> {
         (res, a)
     }
 
-    fn find_a_for(start:i64, target_out: i64, target_a: i64) -> i64 {
-        (start..)
-            .find(|i| {
-                if i % 1_000_000_000 == 0 {
-                    print!(".");
-                }
-                let (res, a) = single_loop(*i);
-                res == target_out && a == target_a
-            })
-            .unwrap()
+    // scan lowest 10 bits (0 through 1023) from starting number
+    fn filter_for(start: i64, target_out: i64, target_a: i64) -> impl Iterator<Item = i64> {
+        (start..start + 1024).filter(move |i| {
+            let (res, a) = single_loop(*i);
+            res == target_out && a == target_a
+        })
     }
 
-    //let mut init_a = 0;
-    println!("{:?}", computer.program);
-    // verify first run
-    let mut a = computer.reg_a;
-    while a > 0 {
-        let (res, a2) = single_loop(a);
-        println!("{a} -> {res}");
-        a = a2;
+    println!("program is {:?}", computer.program);
+    println!("-- first few digits --");
+
+    // first digit...
+    for v in filter_for(0, 0, 0) {
+        println!("0 <- {v}");
     }
 
-    println!("-- search --");
-
-    let mut target_a = 0;
-    for n in computer.program.iter().rev().copied() {
-        let start = 0 << 3;
-        let target_out = n as i64;
-        let a = find_a_for(start, target_out, target_a);
-        target_a = a;
-        println!("{a} -> {target_out}");
-        //init_a = (init_a << 3) + a;
-
+    // second digit
+    for v in filter_for((1 << 3) - 1, 3, 1) {
+        println!("3 <- {v}");
     }
-    let test_computer = Computer {
-        reg_a: target_a,
-        reg_b: 0, 
-        reg_c: 0,
-        .. computer.clone()
-    };
-    println!("{:?}", part1(test_computer)?);
 
-    Ok(target_a)
+    // third digit
+    for v in filter_for((1 << 6) - 1, 3, 8) {
+        println!("3 <- {v}");
+    }
+
+    // fourth digit
+    for tgt in [67, 70] {
+        for v in filter_for((1 << 9) - 1, 0, tgt) {
+            println!("0 <- {v} for tgt {tgt}");
+        }
+    }
+
+    // fifth digit
+    for tgt in [541, 565] {
+        for v in filter_for(tgt << 3, 5, tgt) {
+            println!("5 <- {v} for tgt {tgt}");
+        }
+    }
+
+    // sixth digit
+    for tgt in [4329, 4333, 4521, 4526] {
+        for v in filter_for(tgt << 3, 5, tgt) {
+            println!("6 <- {v} for tgt {tgt}");
+        }
+    }
+
+    println!("-- generalization --");
+
+    // generalization
+    let mut targets_a = vec![0];
+    let mut targets_next = vec![];
+    for num in computer.program.iter().rev().copied() {
+        targets_next.clear();
+        let num = num as i64;
+        for target_a in targets_a.iter() {
+            let start = target_a << 3;
+            for a in filter_for(start, num, *target_a) {
+                println!("{num} <- {a} for target_a {target_a}");
+                targets_next.push(a);
+            }
+        }
+        std::mem::swap(&mut targets_a, &mut targets_next);
+    }
+
+    // these are all valid solutions
+    for a in &targets_a {
+        let test_computer = Computer {
+            reg_a: *a,
+            reg_b: 0,
+            reg_c: 0,
+            ..computer.clone()
+        };
+        println!("{a} -> {:?}", part1(test_computer)?);
+    }
+
+    // return the lowest one
+    targets_a.sort();
+    let res = targets_a.first().unwrap();
+    Ok(*res)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -303,8 +306,6 @@ fn main() -> anyhow::Result<()> {
         "Part 2 result is {res_part2_hardcoded} (took {:?})",
         t2.elapsed()
     );
-    let res_part2 = part2(&problem)?;
-    println!("Part 2 result is {res_part2} (took {:?})", t2.elapsed());
 
     Ok(())
 }
@@ -320,14 +321,6 @@ mod tests {
         Register C: 0
 
         Program: 0,1,5,4,3,0
-    "};
-
-    const EXAMPLE_P2: &str = indoc! {"
-        Register A: 2024
-        Register B: 0
-        Register C: 0
-
-        Program: 0,3,5,4,3,0
     "};
 
     // If register C contains 9, the program 2,6 would set register B to 1.
@@ -384,14 +377,6 @@ mod tests {
         let problem = parse_input(EXAMPLE)?;
         let output = part1(problem)?;
         assert_eq!(output, "4,6,3,5,6,3,5,2,1,0");
-        Ok(())
-    }
-
-    #[test]
-    fn part2_correct() -> Result<()> {
-        let problem = parse_input(EXAMPLE_P2)?;
-        let count = part2(&problem)?;
-        assert_eq!(count, 117440);
         Ok(())
     }
 }

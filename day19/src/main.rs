@@ -1,9 +1,9 @@
-use std::{collections::HashSet, hash::Hash, time::Instant};
+use std::{collections::HashSet, fmt::Display, hash::Hash, time::Instant};
 
 use anyhow::Result;
 use common::OptionAnyhow;
 use fxhash::{FxHashMap, FxHashSet};
-use itertools::Itertools;
+use itertools::{Itertools, Position};
 
 type Towel = Vec<u8>;
 type Pattern = Vec<u8>;
@@ -14,6 +14,22 @@ pub struct Problem {
     patterns: Vec<Pattern>,
 }
 
+#[derive(Debug, Clone)]
+struct PrintPat<'a>(&'a [u8]);
+impl<'a> Display for PrintPat<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for v in self.0 {
+            write!(f, "{}", fmt_char(*v))?;
+        }
+        Ok(())
+    }
+}
+impl<'a> From<&'a [u8]> for PrintPat<'a> {
+    fn from(value: &'a [u8]) -> Self {
+        Self(value)
+    }
+}
+
 fn map_char(ch: char) -> u8 {
     match ch {
         'w' => 1,
@@ -21,7 +37,19 @@ fn map_char(ch: char) -> u8 {
         'b' => 3,
         'r' => 4,
         'g' => 5,
-        _ => panic!("unexpected character {ch}")
+        _ => panic!("unexpected character {ch}"),
+    }
+}
+
+fn fmt_char(v: u8) -> char {
+    match v {
+        0 => ' ',
+        1 => 'w',
+        2 => 'u',
+        3 => 'b',
+        4 => 'r',
+        5 => 'g',
+        _ => '?',
     }
 }
 
@@ -33,7 +61,10 @@ fn parse_input(input: &str) -> Result<Problem> {
     let mut lines = input.lines();
 
     let first = lines.next().ok_anyhow()?;
-    let towels = first.split(", ").map(|s| s.chars().map(map_char).collect()).collect();
+    let towels = first
+        .split(", ")
+        .map(|s| s.chars().map(map_char).collect())
+        .collect();
 
     // skip blank
     lines.next().ok_anyhow()?;
@@ -44,7 +75,12 @@ fn parse_input(input: &str) -> Result<Problem> {
 }
 
 impl Problem {
-    fn search_towels(&self, pattern: &[u8], exclude_self: bool, known_impossible: &mut FxHashSet<Pattern>) -> bool {
+    fn search_towels(
+        &self,
+        pattern: &[u8],
+        exclude_self: bool,
+        known_impossible: &mut FxHashSet<Pattern>,
+    ) -> bool {
         // complete
         if pattern.iter().all(|c| *c == 0) {
             return true;
@@ -54,11 +90,10 @@ impl Problem {
         // remove substrings
         let mut modified = pattern.to_vec();
         for t in &self.towels {
-
             if exclude_self && t == pattern {
                 continue;
             }
-            
+
             if let Some((i, _)) = pattern.windows(t.len()).find_position(|w| w == t) {
                 // blank out window and search remaining
                 modified.copy_from_slice(pattern);
@@ -81,17 +116,22 @@ impl Problem {
         false
     }
 
-    fn search_towels_2(&self, pattern: &[u8], known: &mut FxHashMap<Vec<u8>, bool>) -> bool {
+    fn search_towels_2(&self, pattern: &[u8], known: &mut FxHashMap<Vec<u8>, usize>) -> usize {
+        if self.towels.iter().any(|t| t == pattern) {
+            return 1;
+        }
+
         if pattern.is_empty() {
-            return true;
+            return 1;
         }
 
         if let Some(k) = known.get(pattern) {
             return *k;
         }
 
-
+        let mut possible_solutions = 0;
         for t in &self.towels {
+            let mut towel_solutions = 0;
             for i in 0..pattern.len() {
                 let rem = &pattern[i..];
                 if rem.starts_with(&t) {
@@ -100,21 +140,37 @@ impl Problem {
                     let right = &rem[t.len()..];
                     //println!("left {left:?} right {right:?}");
 
-                    if !self.search_towels_2(left, known) {
-                        continue;
-                    }
-                    if !self.search_towels_2(right, known) {
+                    let left_count = self.search_towels_2(left, known);
+                    if left_count == 0 {
                         continue;
                     }
 
-                    known.insert(pattern.to_vec(), true);
-                    return true;
+                    let right_count = self.search_towels_2(right, known);
+                    if right_count == 0 {
+                        continue;
+                    }
+
+                    // known.insert(pattern.to_vec(), true);
+                    // return true;
+                    let permutations = left_count * right_count;
+                    println!(
+                        "for '{}' => {}({})-{}-{}({}) = {}",
+                        PrintPat(pattern),
+                        PrintPat(left),
+                        left_count,
+                        PrintPat(t),
+                        PrintPat(right),
+                        right_count,
+                        permutations
+                    );
+                    towel_solutions = towel_solutions.max(permutations);
                 }
             }
+            possible_solutions += towel_solutions;
         }
 
-        known.insert(pattern.to_vec(), false);
-        false
+        known.insert(pattern.to_vec(), possible_solutions);
+        possible_solutions
     }
 
     fn reduce_towels(&mut self) {
@@ -131,7 +187,6 @@ impl Problem {
 
         self.towels = essential_towels;
     }
-
 }
 
 fn part1(problem: &Problem) -> Result<usize> {
@@ -144,17 +199,13 @@ fn part1(problem: &Problem) -> Result<usize> {
     let mut known = FxHashMap::default();
     let mut count_solved = 0;
     for pattern in &problem.patterns {
-        print!(
-            "searching for {:?}",
-            format_pattern(pattern)
-        );
-        
+        print!("searching for {:?}", format_pattern(pattern));
+
         //impossible.clear();
         //let solved = problem.search_towels(pattern, false, &mut impossible);
         let solved = problem.search_towels_2(pattern, &mut known);
-        
-        
-        if solved {
+
+        if solved > 0 {
             print!(" -> solved");
             count_solved += 1;
         }
@@ -164,7 +215,28 @@ fn part1(problem: &Problem) -> Result<usize> {
 }
 
 fn part2(problem: &Problem) -> Result<usize> {
-    Ok(2)
+    let mut problem = problem.clone();
+    problem.towels.sort_by_key(|t| -(t.len() as i64));
+    //problem.reduce_towels();
+    //println!("{}", PrintPat(problem.towels));
+
+    //let mut impossible = FxHashSet::default();
+    let mut known = FxHashMap::default();
+    let mut count_solved = 0;
+    for pattern in &problem.patterns {
+        println!("searching for {}", PrintPat(pattern));
+
+        //impossible.clear();
+        //let solved = problem.search_towels(pattern, false, &mut impossible);
+        let solved = problem.search_towels_2(pattern, &mut known);
+
+        if solved > 0 {
+            println!("  -> solved {solved}");
+            count_solved += solved;
+        }
+        println!();
+    }
+    Ok(count_solved)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -219,7 +291,7 @@ mod tests {
     fn part2_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
         let count = part2(&problem)?;
-        assert_eq!(count, 2);
+        assert_eq!(count, 16);
         Ok(())
     }
 }

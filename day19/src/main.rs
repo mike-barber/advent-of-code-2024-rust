@@ -2,7 +2,7 @@ use std::{collections::HashSet, hash::Hash, time::Instant};
 
 use anyhow::Result;
 use common::OptionAnyhow;
-use fxhash::FxHashSet;
+use fxhash::{FxHashMap, FxHashSet};
 use itertools::Itertools;
 
 type Towel = Vec<u8>;
@@ -81,6 +81,42 @@ impl Problem {
         false
     }
 
+    fn search_towels_2(&self, pattern: &[u8], known: &mut FxHashMap<Vec<u8>, bool>) -> bool {
+        if pattern.is_empty() {
+            return true;
+        }
+
+        if let Some(k) = known.get(pattern) {
+            return *k;
+        }
+
+
+        for t in &self.towels {
+            for i in 0..pattern.len() {
+                let rem = &pattern[i..];
+                if rem.starts_with(&t) {
+                    //println!("pattern {pattern:?} rem: {rem:?}, t: {t:?}");
+                    let left = &pattern[..i];
+                    let right = &rem[t.len()..];
+                    //println!("left {left:?} right {right:?}");
+
+                    if !self.search_towels_2(left, known) {
+                        continue;
+                    }
+                    if !self.search_towels_2(right, known) {
+                        continue;
+                    }
+
+                    known.insert(pattern.to_vec(), true);
+                    return true;
+                }
+            }
+        }
+
+        known.insert(pattern.to_vec(), false);
+        false
+    }
+
     fn reduce_towels(&mut self) {
         let mut essential_towels = vec![];
         for t in &self.towels {
@@ -104,7 +140,8 @@ fn part1(problem: &Problem) -> Result<usize> {
     problem.reduce_towels();
     println!("{:?}", problem.towels);
 
-    let mut impossible = FxHashSet::default();
+    //let mut impossible = FxHashSet::default();
+    let mut known = FxHashMap::default();
     let mut count_solved = 0;
     for pattern in &problem.patterns {
         print!(
@@ -112,8 +149,10 @@ fn part1(problem: &Problem) -> Result<usize> {
             format_pattern(pattern)
         );
         
-        impossible.clear();
-        let solved = problem.search_towels(pattern, false, &mut impossible);
+        //impossible.clear();
+        //let solved = problem.search_towels(pattern, false, &mut impossible);
+        let solved = problem.search_towels_2(pattern, &mut known);
+        
         
         if solved {
             print!(" -> solved");

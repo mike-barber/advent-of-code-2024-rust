@@ -240,6 +240,19 @@ dependencies = [
 [[package]]
 name = "day19"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arrayvec",
+ "common",
+ "indoc",
+ "itertools",
+ "nalgebra",
+ "nom",
+ "priority-queue",
+ "regex",
+ "strum",
+ "strum_macros",
+]
 
 [[package]]
 name = "day2"

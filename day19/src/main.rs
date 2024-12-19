@@ -117,60 +117,72 @@ impl Problem {
     }
 
     fn search_towels_2(&self, pattern: &[u8], known: &mut FxHashMap<Vec<u8>, usize>) -> usize {
-        if self.towels.iter().any(|t| t == pattern) {
-            return 1;
-        }
+        // if self.towels.iter().any(|t| t == pattern) {
+        //     return 1;
+        //}
 
-        if pattern.is_empty() {
-            return 1;
-        }
+        assert!(!pattern.is_empty());
 
         if let Some(k) = known.get(pattern) {
             return *k;
         }
 
-        let mut possible_solutions = 0;
+        let mut found_count = 0;
+        //for i in 0..pattern.len() {
         for t in &self.towels {
-            let mut towel_solutions = 0;
-            for i in 0..pattern.len() {
-                let rem = &pattern[i..];
-                if rem.starts_with(&t) {
-                    //println!("pattern {pattern:?} rem: {rem:?}, t: {t:?}");
-                    let left = &pattern[..i];
-                    let right = &rem[t.len()..];
-                    //println!("left {left:?} right {right:?}");
-
-                    let left_count = self.search_towels_2(left, known);
-                    if left_count == 0 {
-                        continue;
-                    }
-
-                    let right_count = self.search_towels_2(right, known);
-                    if right_count == 0 {
-                        continue;
-                    }
-
-                    // known.insert(pattern.to_vec(), true);
-                    // return true;
-                    let permutations = left_count * right_count;
-                    println!(
-                        "for '{}' => {}({})-{}-{}({}) = {}",
-                        PrintPat(pattern),
-                        PrintPat(left),
-                        left_count,
-                        PrintPat(t),
-                        PrintPat(right),
-                        right_count,
-                        permutations
-                    );
-                    towel_solutions = towel_solutions.max(permutations);
+            if pattern[..].starts_with(t) {
+                let rem = &pattern[t.len()..];
+                if rem.is_empty() {
+                    found_count += 1;
+                } else {
+                    let right_count = self.search_towels_2(rem, known);
+                    found_count += right_count;
                 }
             }
-            possible_solutions += towel_solutions;
         }
+        //}
 
-        known.insert(pattern.to_vec(), possible_solutions);
-        possible_solutions
+        // for t in &self.towels {
+        //     let mut towel_solutions = 0;
+        //     for i in 0..pattern.len() {
+        //         let rem = &pattern[i..];
+        //         if rem.starts_with(&t) {
+        //             //println!("pattern {pattern:?} rem: {rem:?}, t: {t:?}");
+        //             let left = &pattern[..i];
+        //             let right = &rem[t.len()..];
+        //             //println!("left {left:?} right {right:?}");
+
+        //             let left_count = self.search_towels_2(left, known);
+        //             if left_count == 0 {
+        //                 continue;
+        //             }
+
+        //             let right_count = self.search_towels_2(right, known);
+        //             if right_count == 0 {
+        //                 continue;
+        //             }
+
+        //             // known.insert(pattern.to_vec(), true);
+        //             // return true;
+        //             let permutations = left_count * right_count;
+        //             println!(
+        //                 "for '{}' => {}({})-{}-{}({}) = {}",
+        //                 PrintPat(pattern),
+        //                 PrintPat(left),
+        //                 left_count,
+        //                 PrintPat(t),
+        //                 PrintPat(right),
+        //                 right_count,
+        //                 permutations
+        //             );
+        //             towel_solutions = towel_solutions.max(permutations);
+        //         }
+        //     }
+        //     possible_solutions += towel_solutions;
+        // }
+
+        known.insert(pattern.to_vec(), found_count);
+        found_count
     }
 
     fn reduce_towels(&mut self) {
@@ -193,16 +205,17 @@ fn part1(problem: &Problem) -> Result<usize> {
     let mut problem = problem.clone();
     problem.towels.sort_by_key(|t| -(t.len() as i64));
     problem.reduce_towels();
-    println!("{:?}", problem.towels);
+    println!("{}", problem.towels.iter().map(|p| PrintPat(p)).join("; "));
 
     //let mut impossible = FxHashSet::default();
     let mut known = FxHashMap::default();
     let mut count_solved = 0;
     for pattern in &problem.patterns {
-        print!("searching for {:?}", format_pattern(pattern));
+        print!("searching for {}", PrintPat(pattern));
 
         //impossible.clear();
         //let solved = problem.search_towels(pattern, false, &mut impossible);
+        known.clear();
         let solved = problem.search_towels_2(pattern, &mut known);
 
         if solved > 0 {
@@ -217,19 +230,13 @@ fn part1(problem: &Problem) -> Result<usize> {
 fn part2(problem: &Problem) -> Result<usize> {
     let mut problem = problem.clone();
     problem.towels.sort_by_key(|t| -(t.len() as i64));
-    //problem.reduce_towels();
-    //println!("{}", PrintPat(problem.towels));
 
-    //let mut impossible = FxHashSet::default();
     let mut known = FxHashMap::default();
     let mut count_solved = 0;
     for pattern in &problem.patterns {
         println!("searching for {}", PrintPat(pattern));
 
-        //impossible.clear();
-        //let solved = problem.search_towels(pattern, false, &mut impossible);
         let solved = problem.search_towels_2(pattern, &mut known);
-
         if solved > 0 {
             println!("  -> solved {solved}");
             count_solved += solved;

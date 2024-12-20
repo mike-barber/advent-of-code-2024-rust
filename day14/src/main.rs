@@ -90,7 +90,7 @@ fn part1(problem: &Problem) -> Result<i64> {
     Ok(product)
 }
 
-// This works, but it doesn't work very well. It assumes the tree is 
+// This works, but it doesn't work very well. It assumes the tree is
 // centred, and it is definitely not. Good enough to get a result though.
 // A smarter plan would be to scan for continuous lines, preferably
 // horizontal ones, since the tree has lots of those.

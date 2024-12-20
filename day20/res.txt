@@ -1,0 +1,237 @@
+
+running 3 tests
+test tests::test_parse_input ... ok
+test tests::part1_correct ... ok
+test tests::part2_correct ... FAILED
+
+failures:
+
+---- tests::part2_correct stdout ----
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 3, y: 7 } } saves 72
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 1, y: 10 } } saves 58
+cheat Cheated { start: Point { x: 7, y: 2 }, end: Point { x: 3, y: 8 } } saves 56
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 1, y: 11 } } saves 58
+cheat Cheated { start: Point { x: 5, y: 1 }, end: Point { x: 5, y: 7 } } saves 54
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 4, y: 11 } } saves 50
+cheat Cheated { start: Point { x: 7, y: 6 }, end: Point { x: 4, y: 7 } } saves 60
+cheat Cheated { start: Point { x: 9, y: 7 }, end: Point { x: 4, y: 7 } } saves 54
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 3, y: 13 } } saves 50
+cheat Cheated { start: Point { x: 8, y: 7 }, end: Point { x: 3, y: 7 } } saves 52
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 3, y: 13 } } saves 54
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 1, y: 13 } } saves 60
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 3, y: 8 } } saves 64
+cheat Cheated { start: Point { x: 3, y: 2 }, end: Point { x: 3, y: 9 } } saves 58
+cheat Cheated { start: Point { x: 7, y: 7 }, end: Point { x: 3, y: 7 } } saves 56
+cheat Cheated { start: Point { x: 4, y: 3 }, end: Point { x: 3, y: 7 } } saves 68
+cheat Cheated { start: Point { x: 7, y: 5 }, end: Point { x: 3, y: 7 } } saves 58
+cheat Cheated { start: Point { x: 4, y: 3 }, end: Point { x: 4, y: 7 } } saves 66
+cheat Cheated { start: Point { x: 7, y: 7 }, end: Point { x: 3, y: 9 } } saves 54
+cheat Cheated { start: Point { x: 5, y: 1 }, end: Point { x: 3, y: 7 } } saves 56
+cheat Cheated { start: Point { x: 4, y: 3 }, end: Point { x: 1, y: 13 } } saves 50
+cheat Cheated { start: Point { x: 3, y: 1 }, end: Point { x: 2, y: 9 } } saves 60
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 3, y: 7 } } saves 74
+cheat Cheated { start: Point { x: 9, y: 7 }, end: Point { x: 3, y: 9 } } saves 50
+cheat Cheated { start: Point { x: 7, y: 6 }, end: Point { x: 2, y: 9 } } saves 52
+cheat Cheated { start: Point { x: 3, y: 3 }, end: Point { x: 1, y: 10 } } saves 56
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 3, y: 13 } } saves 52
+cheat Cheated { start: Point { x: 3, y: 3 }, end: Point { x: 1, y: 9 } } saves 62
+cheat Cheated { start: Point { x: 1, y: 1 }, end: Point { x: 3, y: 8 } } saves 62
+cheat Cheated { start: Point { x: 1, y: 1 }, end: Point { x: 3, y: 13 } } saves 50
+cheat Cheated { start: Point { x: 1, y: 1 }, end: Point { x: 1, y: 12 } } saves 60
+cheat Cheated { start: Point { x: 7, y: 3 }, end: Point { x: 3, y: 9 } } saves 54
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 4, y: 7 } } saves 66
+cheat Cheated { start: Point { x: 6, y: 1 }, end: Point { x: 4, y: 7 } } saves 62
+cheat Cheated { start: Point { x: 5, y: 1 }, end: Point { x: 4, y: 7 } } saves 56
+cheat Cheated { start: Point { x: 5, y: 2 }, end: Point { x: 1, y: 10 } } saves 52
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 5, y: 11 } } saves 54
+cheat Cheated { start: Point { x: 1, y: 1 }, end: Point { x: 1, y: 9 } } saves 66
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 1, y: 10 } } saves 56
+cheat Cheated { start: Point { x: 1, y: 1 }, end: Point { x: 1, y: 10 } } saves 64
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 2, y: 13 } } saves 50
+cheat Cheated { start: Point { x: 7, y: 3 }, end: Point { x: 3, y: 7 } } saves 58
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 1, y: 13 } } saves 54
+cheat Cheated { start: Point { x: 1, y: 1 }, end: Point { x: 5, y: 7 } } saves 66
+cheat Cheated { start: Point { x: 3, y: 2 }, end: Point { x: 1, y: 11 } } saves 52
+cheat Cheated { start: Point { x: 5, y: 3 }, end: Point { x: 1, y: 10 } } saves 56
+cheat Cheated { start: Point { x: 5, y: 2 }, end: Point { x: 3, y: 9 } } saves 58
+cheat Cheated { start: Point { x: 3, y: 3 }, end: Point { x: 5, y: 7 } } saves 68
+cheat Cheated { start: Point { x: 7, y: 4 }, end: Point { x: 4, y: 7 } } saves 60
+cheat Cheated { start: Point { x: 7, y: 4 }, end: Point { x: 3, y: 7 } } saves 58
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 4, y: 11 } } saves 50
+cheat Cheated { start: Point { x: 3, y: 1 }, end: Point { x: 1, y: 10 } } saves 58
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 5, y: 7 } } saves 72
+cheat Cheated { start: Point { x: 5, y: 2 }, end: Point { x: 4, y: 7 } } saves 64
+cheat Cheated { start: Point { x: 7, y: 4 }, end: Point { x: 1, y: 9 } } saves 50
+cheat Cheated { start: Point { x: 3, y: 3 }, end: Point { x: 4, y: 11 } } saves 50
+cheat Cheated { start: Point { x: 5, y: 3 }, end: Point { x: 1, y: 12 } } saves 52
+cheat Cheated { start: Point { x: 4, y: 3 }, end: Point { x: 2, y: 9 } } saves 58
+cheat Cheated { start: Point { x: 3, y: 3 }, end: Point { x: 3, y: 8 } } saves 64
+cheat Cheated { start: Point { x: 5, y: 3 }, end: Point { x: 3, y: 9 } } saves 60
+cheat Cheated { start: Point { x: 3, y: 1 }, end: Point { x: 1, y: 12 } } saves 54
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 4, y: 7 } } saves 68
+cheat Cheated { start: Point { x: 3, y: 3 }, end: Point { x: 5, y: 11 } } saves 50
+cheat Cheated { start: Point { x: 7, y: 7 }, end: Point { x: 4, y: 7 } } saves 60
+cheat Cheated { start: Point { x: 3, y: 1 }, end: Point { x: 3, y: 7 } } saves 64
+cheat Cheated { start: Point { x: 3, y: 1 }, end: Point { x: 4, y: 7 } } saves 64
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 1, y: 13 } } saves 58
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 2, y: 13 } } saves 52
+cheat Cheated { start: Point { x: 7, y: 5 }, end: Point { x: 2, y: 9 } } saves 52
+cheat Cheated { start: Point { x: 7, y: 2 }, end: Point { x: 4, y: 7 } } saves 60
+cheat Cheated { start: Point { x: 7, y: 5 }, end: Point { x: 1, y: 9 } } saves 50
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 1, y: 11 } } saves 56
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 5, y: 7 } } saves 68
+cheat Cheated { start: Point { x: 1, y: 1 }, end: Point { x: 2, y: 13 } } saves 54
+cheat Cheated { start: Point { x: 5, y: 3 }, end: Point { x: 5, y: 7 } } saves 68
+cheat Cheated { start: Point { x: 8, y: 7 }, end: Point { x: 3, y: 9 } } saves 52
+cheat Cheated { start: Point { x: 5, y: 3 }, end: Point { x: 2, y: 9 } } saves 58
+cheat Cheated { start: Point { x: 7, y: 1 }, end: Point { x: 4, y: 7 } } saves 52
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 3, y: 12 } } saves 52
+cheat Cheated { start: Point { x: 8, y: 7 }, end: Point { x: 4, y: 7 } } saves 56
+cheat Cheated { start: Point { x: 7, y: 5 }, end: Point { x: 3, y: 9 } } saves 54
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 3, y: 9 } } saves 60
+cheat Cheated { start: Point { x: 6, y: 1 }, end: Point { x: 3, y: 9 } } saves 56
+cheat Cheated { start: Point { x: 5, y: 1 }, end: Point { x: 1, y: 9 } } saves 52
+cheat Cheated { start: Point { x: 3, y: 2 }, end: Point { x: 3, y: 8 } } saves 62
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 3, y: 9 } } saves 64
+cheat Cheated { start: Point { x: 7, y: 4 }, end: Point { x: 5, y: 7 } } saves 62
+cheat Cheated { start: Point { x: 7, y: 5 }, end: Point { x: 4, y: 7 } } saves 60
+cheat Cheated { start: Point { x: 5, y: 1 }, end: Point { x: 1, y: 10 } } saves 50
+cheat Cheated { start: Point { x: 4, y: 3 }, end: Point { x: 1, y: 11 } } saves 54
+cheat Cheated { start: Point { x: 4, y: 3 }, end: Point { x: 4, y: 11 } } saves 50
+cheat Cheated { start: Point { x: 6, y: 1 }, end: Point { x: 3, y: 7 } } saves 60
+cheat Cheated { start: Point { x: 6, y: 1 }, end: Point { x: 5, y: 7 } } saves 64
+cheat Cheated { start: Point { x: 4, y: 3 }, end: Point { x: 1, y: 12 } } saves 52
+cheat Cheated { start: Point { x: 7, y: 6 }, end: Point { x: 3, y: 8 } } saves 56
+cheat Cheated { start: Point { x: 7, y: 6 }, end: Point { x: 5, y: 7 } } saves 62
+cheat Cheated { start: Point { x: 3, y: 3 }, end: Point { x: 2, y: 13 } } saves 50
+cheat Cheated { start: Point { x: 9, y: 7 }, end: Point { x: 3, y: 7 } } saves 50
+cheat Cheated { start: Point { x: 9, y: 6 }, end: Point { x: 4, y: 7 } } saves 50
+cheat Cheated { start: Point { x: 3, y: 2 }, end: Point { x: 3, y: 7 } } saves 70
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 3, y: 8 } } saves 66
+cheat Cheated { start: Point { x: 3, y: 3 }, end: Point { x: 1, y: 12 } } saves 52
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 3, y: 11 } } saves 50
+cheat Cheated { start: Point { x: 4, y: 3 }, end: Point { x: 3, y: 8 } } saves 64
+cheat Cheated { start: Point { x: 3, y: 3 }, end: Point { x: 1, y: 11 } } saves 54
+cheat Cheated { start: Point { x: 5, y: 2 }, end: Point { x: 3, y: 7 } } saves 62
+cheat Cheated { start: Point { x: 5, y: 2 }, end: Point { x: 5, y: 7 } } saves 66
+cheat Cheated { start: Point { x: 7, y: 6 }, end: Point { x: 3, y: 7 } } saves 58
+cheat Cheated { start: Point { x: 6, y: 1 }, end: Point { x: 2, y: 9 } } saves 54
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 5, y: 11 } } saves 52
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 2, y: 13 } } saves 54
+cheat Cheated { start: Point { x: 5, y: 2 }, end: Point { x: 1, y: 9 } } saves 54
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 1, y: 11 } } saves 54
+cheat Cheated { start: Point { x: 5, y: 3 }, end: Point { x: 3, y: 7 } } saves 66
+cheat Cheated { start: Point { x: 3, y: 2 }, end: Point { x: 1, y: 9 } } saves 62
+cheat Cheated { start: Point { x: 3, y: 2 }, end: Point { x: 1, y: 12 } } saves 50
+cheat Cheated { start: Point { x: 1, y: 1 }, end: Point { x: 3, y: 7 } } saves 70
+cheat Cheated { start: Point { x: 5, y: 3 }, end: Point { x: 1, y: 9 } } saves 58
+cheat Cheated { start: Point { x: 9, y: 5 }, end: Point { x: 5, y: 7 } } saves 50
+cheat Cheated { start: Point { x: 3, y: 3 }, end: Point { x: 3, y: 7 } } saves 70
+cheat Cheated { start: Point { x: 3, y: 1 }, end: Point { x: 1, y: 9 } } saves 60
+cheat Cheated { start: Point { x: 4, y: 3 }, end: Point { x: 5, y: 11 } } saves 50
+cheat Cheated { start: Point { x: 5, y: 3 }, end: Point { x: 4, y: 11 } } saves 50
+cheat Cheated { start: Point { x: 3, y: 2 }, end: Point { x: 2, y: 9 } } saves 56
+cheat Cheated { start: Point { x: 7, y: 4 }, end: Point { x: 2, y: 9 } } saves 52
+cheat Cheated { start: Point { x: 3, y: 3 }, end: Point { x: 3, y: 9 } } saves 60
+cheat Cheated { start: Point { x: 9, y: 6 }, end: Point { x: 5, y: 7 } } saves 52
+cheat Cheated { start: Point { x: 9, y: 7 }, end: Point { x: 5, y: 7 } } saves 56
+cheat Cheated { start: Point { x: 7, y: 7 }, end: Point { x: 2, y: 9 } } saves 52
+cheat Cheated { start: Point { x: 7, y: 3 }, end: Point { x: 4, y: 7 } } saves 60
+cheat Cheated { start: Point { x: 7, y: 4 }, end: Point { x: 3, y: 9 } } saves 54
+cheat Cheated { start: Point { x: 1, y: 1 }, end: Point { x: 4, y: 7 } } saves 64
+cheat Cheated { start: Point { x: 4, y: 3 }, end: Point { x: 5, y: 7 } } saves 68
+cheat Cheated { start: Point { x: 7, y: 6 }, end: Point { x: 1, y: 9 } } saves 50
+cheat Cheated { start: Point { x: 7, y: 3 }, end: Point { x: 2, y: 9 } } saves 52
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 3, y: 7 } } saves 76
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 4, y: 7 } } saves 70
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 1, y: 9 } } saves 68
+cheat Cheated { start: Point { x: 7, y: 2 }, end: Point { x: 3, y: 9 } } saves 54
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 1, y: 10 } } saves 60
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 2, y: 9 } } saves 60
+cheat Cheated { start: Point { x: 5, y: 1 }, end: Point { x: 3, y: 8 } } saves 54
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 1, y: 9 } } saves 70
+cheat Cheated { start: Point { x: 7, y: 3 }, end: Point { x: 1, y: 9 } } saves 50
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 5, y: 11 } } saves 50
+cheat Cheated { start: Point { x: 8, y: 7 }, end: Point { x: 3, y: 8 } } saves 50
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 1, y: 12 } } saves 56
+cheat Cheated { start: Point { x: 1, y: 1 }, end: Point { x: 2, y: 9 } } saves 66
+cheat Cheated { start: Point { x: 5, y: 3 }, end: Point { x: 5, y: 11 } } saves 50
+cheat Cheated { start: Point { x: 7, y: 7 }, end: Point { x: 5, y: 7 } } saves 62
+cheat Cheated { start: Point { x: 3, y: 1 }, end: Point { x: 5, y: 7 } } saves 60
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 3, y: 11 } } saves 52
+cheat Cheated { start: Point { x: 7, y: 5 }, end: Point { x: 3, y: 8 } } saves 56
+cheat Cheated { start: Point { x: 6, y: 1 }, end: Point { x: 3, y: 8 } } saves 58
+cheat Cheated { start: Point { x: 7, y: 2 }, end: Point { x: 2, y: 9 } } saves 52
+cheat Cheated { start: Point { x: 7, y: 2 }, end: Point { x: 1, y: 9 } } saves 50
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 3, y: 8 } } saves 68
+cheat Cheated { start: Point { x: 4, y: 3 }, end: Point { x: 1, y: 9 } } saves 60
+cheat Cheated { start: Point { x: 7, y: 7 }, end: Point { x: 3, y: 8 } } saves 54
+cheat Cheated { start: Point { x: 4, y: 3 }, end: Point { x: 1, y: 10 } } saves 56
+cheat Cheated { start: Point { x: 7, y: 6 }, end: Point { x: 3, y: 9 } } saves 54
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 3, y: 9 } } saves 62
+cheat Cheated { start: Point { x: 3, y: 3 }, end: Point { x: 1, y: 13 } } saves 52
+cheat Cheated { start: Point { x: 3, y: 3 }, end: Point { x: 2, y: 9 } } saves 58
+cheat Cheated { start: Point { x: 8, y: 7 }, end: Point { x: 5, y: 7 } } saves 58
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 3, y: 12 } } saves 50
+cheat Cheated { start: Point { x: 4, y: 3 }, end: Point { x: 3, y: 9 } } saves 60
+cheat Cheated { start: Point { x: 1, y: 1 }, end: Point { x: 3, y: 9 } } saves 58
+cheat Cheated { start: Point { x: 7, y: 5 }, end: Point { x: 5, y: 7 } } saves 62
+cheat Cheated { start: Point { x: 1, y: 1 }, end: Point { x: 1, y: 13 } } saves 56
+cheat Cheated { start: Point { x: 7, y: 3 }, end: Point { x: 3, y: 8 } } saves 56
+cheat Cheated { start: Point { x: 5, y: 2 }, end: Point { x: 1, y: 11 } } saves 50
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 2, y: 9 } } saves 58
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 1, y: 9 } } saves 64
+cheat Cheated { start: Point { x: 3, y: 2 }, end: Point { x: 5, y: 7 } } saves 66
+cheat Cheated { start: Point { x: 6, y: 1 }, end: Point { x: 1, y: 10 } } saves 50
+cheat Cheated { start: Point { x: 3, y: 2 }, end: Point { x: 4, y: 7 } } saves 64
+cheat Cheated { start: Point { x: 7, y: 3 }, end: Point { x: 5, y: 7 } } saves 62
+cheat Cheated { start: Point { x: 1, y: 1 }, end: Point { x: 1, y: 11 } } saves 62
+cheat Cheated { start: Point { x: 2, y: 1 }, end: Point { x: 1, y: 12 } } saves 52
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 5, y: 7 } } saves 70
+cheat Cheated { start: Point { x: 6, y: 1 }, end: Point { x: 1, y: 9 } } saves 52
+cheat Cheated { start: Point { x: 5, y: 1 }, end: Point { x: 2, y: 9 } } saves 52
+cheat Cheated { start: Point { x: 5, y: 2 }, end: Point { x: 2, y: 9 } } saves 56
+cheat Cheated { start: Point { x: 1, y: 3 }, end: Point { x: 2, y: 9 } } saves 62
+cheat Cheated { start: Point { x: 3, y: 2 }, end: Point { x: 1, y: 10 } } saves 54
+cheat Cheated { start: Point { x: 5, y: 3 }, end: Point { x: 1, y: 11 } } saves 54
+cheat Cheated { start: Point { x: 7, y: 1 }, end: Point { x: 3, y: 8 } } saves 50
+cheat Cheated { start: Point { x: 3, y: 2 }, end: Point { x: 1, y: 13 } } saves 52
+cheat Cheated { start: Point { x: 5, y: 2 }, end: Point { x: 3, y: 8 } } saves 60
+cheat Cheated { start: Point { x: 3, y: 3 }, end: Point { x: 4, y: 7 } } saves 66
+cheat Cheated { start: Point { x: 3, y: 1 }, end: Point { x: 1, y: 11 } } saves 56
+cheat Cheated { start: Point { x: 7, y: 2 }, end: Point { x: 5, y: 7 } } saves 62
+cheat Cheated { start: Point { x: 5, y: 3 }, end: Point { x: 3, y: 8 } } saves 64
+cheat Cheated { start: Point { x: 3, y: 1 }, end: Point { x: 1, y: 13 } } saves 50
+cheat Cheated { start: Point { x: 5, y: 3 }, end: Point { x: 4, y: 7 } } saves 66
+cheat Cheated { start: Point { x: 7, y: 4 }, end: Point { x: 3, y: 8 } } saves 56
+cheat Cheated { start: Point { x: 7, y: 1 }, end: Point { x: 5, y: 7 } } saves 52
+cheat Cheated { start: Point { x: 3, y: 1 }, end: Point { x: 3, y: 8 } } saves 62
+cheat Cheated { start: Point { x: 7, y: 1 }, end: Point { x: 3, y: 7 } } saves 52
+cheat Cheated { start: Point { x: 1, y: 2 }, end: Point { x: 1, y: 12 } } saves 54
+cheat Cheated { start: Point { x: 7, y: 2 }, end: Point { x: 3, y: 7 } } saves 58
+32 cheats that save 50
+28 cheats that save 52
+24 cheats that save 54
+21 cheats that save 56
+19 cheats that save 58
+20 cheats that save 60
+16 cheats that save 62
+13 cheats that save 64
+11 cheats that save 66
+8 cheats that save 68
+6 cheats that save 70
+2 cheats that save 72
+1 cheats that save 74
+1 cheats that save 76
+thread 'tests::part2_correct' panicked at day20/src/main.rs:474:9:
+assertion `left == right` failed
+  left: 202
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::part2_correct
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+

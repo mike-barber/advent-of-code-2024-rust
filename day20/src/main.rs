@@ -73,6 +73,12 @@ enum Cheat {
     },
 }
 
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+struct Cheated {
+    start: Point,
+    end: Point,
+}
+
 #[derive(Clone, Debug)]
 struct Dist {
     cost: i64,
@@ -137,7 +143,7 @@ fn part1_shortcuts(problem: &Problem) -> Result<BTreeMap<i64, usize>> {
                         // "valid" cheat -- is it worth anything?
                         let cheat_dist = dist + 2;
                         if cheat_dist < *base {
-                            let saving = base-cheat_dist;
+                            let saving = base - cheat_dist;
                             *shortcuts.entry(saving).or_default() += 1;
                         }
                     }
@@ -152,7 +158,83 @@ fn part1_shortcuts(problem: &Problem) -> Result<BTreeMap<i64, usize>> {
 
 fn part1(problem: &Problem) -> Result<usize> {
     let shortcuts = part1_shortcuts(problem)?;
-    Ok(shortcuts.iter().filter_map(|(saving,count)| if *saving >= 100 { Some(*count) } else {None }).sum())
+    Ok(shortcuts
+        .iter()
+        .filter_map(|(saving, count)| if *saving >= 100 { Some(*count) } else { None })
+        .sum())
+}
+
+fn part2_shortcuts(problem: &Problem) -> Result<FxHashMap<Cheated, i64>> {
+    let map = &problem.map;
+    let base_dist = get_base_distances(problem);
+
+    let mut cheats = FxHashMap::default();
+
+    let mut local_dist = FxHashMap::<Point, i64>::default();
+    let mut q = PriorityQueue::new();
+
+    for start in base_dist.keys().copied() {
+        // scan from given point for all open points reachable from here
+        local_dist.clear();
+        assert!(q.is_empty());
+
+        local_dist.insert(start, 0);
+        q.push(start, 0);
+        while let Some((p, prio)) = q.pop() {
+            let d = -prio;
+            let alt = d + 1;
+            if alt > 20 {
+                continue;
+            }
+
+            for next_p in ScreenDir::iter().map(|sd| p + sd.into()) {
+                if let Some(Block::Wall) = map.get(next_p) {
+                    let next_local_dist = *local_dist.get(&next_p).unwrap_or(&i64::MAX);
+                    if alt < next_local_dist {
+                        // record distance and explore further
+                        local_dist.insert(next_p, alt);
+                        q.push(next_p, -alt);
+                    }
+                } else if let Some(orig_dist) = base_dist.get(&next_p) {
+                    // back on the path - record the value of this cheat
+                    let cheat_dist = alt + base_dist.get(&start).unwrap();
+                    if cheat_dist < *orig_dist {
+                        let saving = orig_dist - cheat_dist;
+                        cheats.insert(
+                            Cheated {
+                                start: start,
+                                end: next_p,
+                            },
+                            saving,
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(cheats)
+}
+
+fn part2(problem: &Problem, threshold: i64) -> Result<usize> {
+    let shortcuts = part2_shortcuts(problem)?;
+
+    let mut counts = BTreeMap::new();
+    for (ch,saving) in &shortcuts {
+        if *saving >= threshold {
+            println!("cheat {ch:?} saves {saving}");
+            *counts.entry(saving).or_insert(0_usize) += 1;
+        }
+    }
+
+    for (saving,count) in counts {
+        println!("{count} cheats that save {saving}");
+    }
+
+    Ok(shortcuts
+        .iter()
+        .filter(|(_, saving)| **saving >= threshold)
+        .count())
 }
 
 fn part1_old(problem: &Problem) -> Result<BTreeMap<i64, usize>> {
@@ -291,10 +373,6 @@ fn part1_old(problem: &Problem) -> Result<BTreeMap<i64, usize>> {
     Ok(counts)
 }
 
-fn part2(problem: &Problem, dist: DistMap) -> Result<i64> {
-    todo!()
-}
-
 // fn part2(problem: &Problem, dist: DistMap) -> Result<i64> {
 //     let mut visited: HashSet<Point> = HashSet::new();
 //     let mut q = vec![];
@@ -341,9 +419,9 @@ fn main() -> anyhow::Result<()> {
     let count_part1 = part1(&problem)?;
     println!("Part 1 result is {count_part1:?} (took {:?})", t.elapsed());
 
-    // let t2 = Instant::now();
-    // let count_part2 = part2(&problem)?;
-    // println!("Part 2 result is {count_part2:?} (took {:?})", t2.elapsed());
+    let t = Instant::now();
+    let count_part2 = part2(&problem, 100)?;
+    println!("Part 2 result is {count_part2:?} (took {:?})", t.elapsed());
 
     Ok(())
 }
@@ -392,8 +470,8 @@ mod tests {
     #[test]
     fn part2_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
-        //let count = part2(&problem)?;
-        //assert_eq!(count, 2);
+        let count = part2(&problem, 50)?;
+        assert_eq!(count, 2);
         todo!();
         Ok(())
     }

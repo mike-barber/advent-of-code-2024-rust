@@ -170,40 +170,34 @@ fn part2_shortcuts(problem: &Problem) -> Result<FxHashMap<Cheated, i64>> {
 
     let mut cheats = FxHashMap::default();
 
-    let mut local_dist = FxHashMap::<Point, i64>::default();
-    let mut q = PriorityQueue::new();
+    // let mut local_dist = FxHashMap::<Point, i64>::default();
+    // let mut q = PriorityQueue::new();
 
     for start in base_dist.keys().copied() {
-        // scan from given point for all open points reachable from here
-        local_dist.clear();
-        assert!(q.is_empty());
+        // assuming we can just run over open or wall with cheat
+        // which makes it able to reach anything within a simple manhattan distance (20)
+        let start_dist = base_dist.get(&start).unwrap();
+        for dx in -20..=20_i64 {
+            for dy in -20..=20_i64 {
+                
+                if dx == 0 && dy == 0 {
+                    continue;
+                }
+                
+                let cheat_distance = dx.abs() + dy.abs();
+                if cheat_distance > 20 {
+                    continue;
+                }
 
-        local_dist.insert(start, 0);
-        q.push(start, 0);
-        while let Some((p, prio)) = q.pop() {
-            let d = -prio;
-            let alt = d + 1;
-            if alt > 20 {
-                continue;
-            }
-
-            for next_p in ScreenDir::iter().map(|sd| p + sd.into()) {
-                if let Some(Block::Wall) = map.get(next_p) {
-                    let next_local_dist = *local_dist.get(&next_p).unwrap_or(&i64::MAX);
-                    if alt < next_local_dist {
-                        // record distance and explore further
-                        local_dist.insert(next_p, alt);
-                        q.push(next_p, -alt);
-                    }
-                } else if let Some(orig_dist) = base_dist.get(&next_p) {
-                    // back on the path - record the value of this cheat
-                    let cheat_dist = alt + base_dist.get(&start).unwrap();
-                    if cheat_dist < *orig_dist {
-                        let saving = orig_dist - cheat_dist;
+                let alt_dist = *start_dist + cheat_distance;
+                let end = start + Point::new(dx, dy);
+                if let Some(orig_dist) = base_dist.get(&end) {
+                    if alt_dist < *orig_dist {
+                        let saving = orig_dist - alt_dist;
                         cheats.insert(
                             Cheated {
-                                start: start,
-                                end: next_p,
+                                start,
+                                end
                             },
                             saving,
                         );
@@ -211,6 +205,44 @@ fn part2_shortcuts(problem: &Problem) -> Result<FxHashMap<Cheated, i64>> {
                 }
             }
         }
+
+        // // scan from given point for all open points reachable from here
+        // local_dist.clear();
+        // assert!(q.is_empty());
+
+        // local_dist.insert(start, 0);
+        // q.push(start, 0);
+        // while let Some((p, prio)) = q.pop() {
+        //     let d = -prio;
+        //     let alt = d + 1;
+        //     if alt > 20 {
+        //         continue;
+        //     }
+
+        //     for next_p in ScreenDir::iter().map(|sd| p + sd.into()) {
+        //         if let Some(Block::Wall) = map.get(next_p) {
+        //             let next_local_dist = *local_dist.get(&next_p).unwrap_or(&i64::MAX);
+        //             if alt < next_local_dist {
+        //                 // record distance and explore further
+        //                 local_dist.insert(next_p, alt);
+        //                 q.push(next_p, -alt);
+        //             }
+        //         } else if let Some(orig_dist) = base_dist.get(&next_p) {
+        //             // back on the path - record the value of this cheat
+        //             let cheat_dist = alt + base_dist.get(&start).unwrap();
+        //             if cheat_dist < *orig_dist {
+        //                 let saving = orig_dist - cheat_dist;
+        //                 cheats.insert(
+        //                     Cheated {
+        //                         start: start,
+        //                         end: next_p,
+        //                     },
+        //                     saving,
+        //                 );
+        //             }
+        //         }
+        //     }
+        // }
     }
 
     Ok(cheats)
@@ -222,7 +254,7 @@ fn part2(problem: &Problem, threshold: i64) -> Result<usize> {
     let mut counts = BTreeMap::new();
     for (ch,saving) in &shortcuts {
         if *saving >= threshold {
-            println!("cheat {ch:?} saves {saving}");
+            //println!("cheat {ch:?} saves {saving}");
             *counts.entry(saving).or_insert(0_usize) += 1;
         }
     }
@@ -471,8 +503,7 @@ mod tests {
     fn part2_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
         let count = part2(&problem, 50)?;
-        assert_eq!(count, 2);
-        todo!();
+        assert_eq!(count, 285);
         Ok(())
     }
 }

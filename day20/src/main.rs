@@ -1,4 +1,7 @@
-use std::{collections::{BTreeMap, HashMap}, time::Instant};
+use std::{
+    collections::{BTreeMap, HashMap},
+    time::Instant,
+};
 
 use anyhow::{bail, Result};
 use arrayvec::ArrayVec;
@@ -89,8 +92,74 @@ impl State {
 
 type DistMap = FxHashMap<State, Dist>;
 
-fn part1(problem: &Problem) -> Result<(i64, BTreeMap<i64, usize>)> {
+fn get_base_distances(problem: &Problem) -> FxHashMap<Point, i64> {
     let map = &problem.map;
+
+    let mut dist = FxHashMap::<Point, i64>::default();
+    let mut q = PriorityQueue::new();
+    dist.insert(problem.start, 0);
+    q.push(problem.start, 0);
+    while let Some((p, prio)) = q.pop() {
+        let d = -prio;
+        for next_p in ScreenDir::iter().map(|sd| p + sd.into()) {
+            match map.get(next_p) {
+                Some(Block::Open) | Some(Block::End) => {
+                    let next_state_cost = *dist.get(&next_p).unwrap_or(&i64::MAX);
+                    let alt = d + 1;
+                    if alt < next_state_cost {
+                        dist.insert(next_p, alt);
+                        q.push(next_p, -alt);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    dist
+}
+
+fn part1_shortcuts(problem: &Problem) -> Result<BTreeMap<i64, usize>> {
+    let map = &problem.map;
+    let base_dist = get_base_distances(problem);
+
+    let mut shortcuts = BTreeMap::new();
+
+    for (&p, &dist) in &base_dist {
+        for m1 in ScreenDir::iter() {
+            let m1 = p + m1.into();
+            for m2 in ScreenDir::iter() {
+                let m2 = m1 + m2.into();
+                if m2 == p {
+                    continue;
+                }
+                match (map.get(m1), base_dist.get(&m2)) {
+                    (Some(Block::Wall), Some(base)) => {
+                        // "valid" cheat -- is it worth anything?
+                        let cheat_dist = dist + 2;
+                        if cheat_dist < *base {
+                            let saving = base-cheat_dist;
+                            *shortcuts.entry(saving).or_default() += 1;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    Ok(shortcuts)
+}
+
+fn part1(problem: &Problem) -> Result<usize> {
+    let shortcuts = part1_shortcuts(problem)?;
+    Ok(shortcuts.iter().filter_map(|(saving,count)| if *saving >= 100 { Some(*count) } else {None }).sum())
+}
+
+fn part1_old(problem: &Problem) -> Result<BTreeMap<i64, usize>> {
+    let map = &problem.map;
+
+    let base_distances = get_base_distances(problem);
+    println!("{base_distances:?}");
 
     let mut dist: DistMap = FxHashMap::default();
     let mut q = PriorityQueue::new();
@@ -137,7 +206,7 @@ fn part1(problem: &Problem) -> Result<(i64, BTreeMap<i64, usize>)> {
                     if activated_prior == next_p {
                         continue;
                     }
-                    
+
                     State::new(
                         next_p,
                         Cheat::LastMove {
@@ -153,6 +222,14 @@ fn part1(problem: &Problem) -> Result<(i64, BTreeMap<i64, usize>)> {
             };
 
             let alt = cur_dist.cost + COST;
+
+            // skip if the base cost is lower than the new point - there's no point taking this path
+            if let Some(base) = base_distances.get(&next_state.loc) {
+                if *base < alt {
+                    continue;
+                }
+            }
+
             let next_state_cost = *dist.get(&next_state).map(|d| &d.cost).unwrap_or(&i64::MAX);
             match alt.cmp(&next_state_cost) {
                 std::cmp::Ordering::Less => {
@@ -207,11 +284,11 @@ fn part1(problem: &Problem) -> Result<(i64, BTreeMap<i64, usize>)> {
         }
     }
 
-    for (s,c) in &counts {
+    for (s, c) in &counts {
         println!("saving {s} -> {c} instances");
     }
 
-    Ok((min_cost_no_cheats, counts))
+    Ok(counts)
 }
 
 fn part2(problem: &Problem, dist: DistMap) -> Result<i64> {
@@ -304,9 +381,7 @@ mod tests {
     #[test]
     fn part1_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
-        let (min_cost_no_cheats, counts) = part1(&problem)?;
-        println!("min_cost_no_cheats {min_cost_no_cheats}");
-        assert_eq!(min_cost_no_cheats, 84);
+        let counts = part1_shortcuts(&problem)?;
         assert_eq!(counts.get(&64).copied(), Some(1));
         assert_eq!(counts.get(&20).copied(), Some(1));
         assert_eq!(counts.get(&2).copied(), Some(14));

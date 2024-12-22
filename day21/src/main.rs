@@ -1,6 +1,7 @@
-use std::{io::Lines, time::Instant};
+use std::{i32, io::Lines, time::Instant};
 
 use anyhow::{bail, Result};
+use arrayvec::ArrayVec;
 use common::cartesian::{Point, ScreenDir};
 use fxhash::FxHashMap;
 use indoc::indoc;
@@ -31,7 +32,7 @@ enum DirKey {
     Dir(ScreenDir),
 }
 impl DirKey {
-    fn inputs() -> [DirKey; 5] {
+    const fn inputs() -> [DirKey; 5] {
         [
             DirKey::Activate,
             DirKey::Dir(ScreenDir::U),
@@ -42,20 +43,18 @@ impl DirKey {
     }
 }
 
+const NUMPAD: NumPad = NumPad {
+    map: matrix![
+        NumKey::Val(7), NumKey::Val(8), NumKey::Val(9);
+        NumKey::Val(4), NumKey::Val(5), NumKey::Val(6);
+        NumKey::Val(1), NumKey::Val(2), NumKey::Val(3);
+        NumKey::Blank, NumKey::Val(0), NumKey::Activate;
+    ],
+};
+
 #[derive(Debug, Clone)]
 struct NumPad {
     map: Matrix4x3<NumKey>,
-}
-impl Default for NumPad {
-    fn default() -> Self {
-        let map = matrix![
-            NumKey::Val(7), NumKey::Val(8), NumKey::Val(9);
-            NumKey::Val(4), NumKey::Val(5), NumKey::Val(6);
-            NumKey::Val(1), NumKey::Val(2), NumKey::Val(3);
-            NumKey::Blank, NumKey::Val(0), NumKey::Activate;
-        ];
-        Self { map }
-    }
 }
 impl NumPad {
     fn get(&self, p: Point) -> Option<NumKey> {
@@ -67,18 +66,15 @@ impl NumPad {
     }
 }
 
+const DIRPAD: DirPad = DirPad {
+    map: matrix![
+        DirKey::Blank, DirKey::Dir(ScreenDir::U), DirKey::Activate;
+        DirKey::Dir(ScreenDir::L), DirKey::Dir(ScreenDir::D), DirKey::Dir(ScreenDir::R)
+    ],
+};
 #[derive(Debug, Clone)]
 struct DirPad {
     map: Matrix2x3<DirKey>,
-}
-impl Default for DirPad {
-    fn default() -> Self {
-        let map = matrix![
-            DirKey::Blank, DirKey::Dir(ScreenDir::U), DirKey::Activate;
-            DirKey::Dir(ScreenDir::L), DirKey::Dir(ScreenDir::D), DirKey::Dir(ScreenDir::R)
-        ];
-        Self { map }
-    }
 }
 impl DirPad {
     fn get(&self, p: Point) -> Option<DirKey> {
@@ -141,9 +137,6 @@ fn parse_input(input: &str) -> Result<Problem> {
 }
 
 fn solve1(door_codes: &[NumKey]) -> FxHashMap<State, i32> {
-    let dirpad = DirPad::default();
-    let numpad = NumPad::default();
-
     let init_state = State::default();
 
     let mut dist = FxHashMap::default();
@@ -158,7 +151,7 @@ fn solve1(door_codes: &[NumKey]) -> FxHashMap<State, i32> {
                 DirKey::Blank => {}
                 DirKey::Dir(d) => {
                     let pos2 = st.pos_dirpad2 + d.into();
-                    let key2 = dirpad.get(pos2);
+                    let key2 = DIRPAD.get(pos2);
                     if let Some(DirKey::Activate) | Some(DirKey::Dir(..)) = key2 {
                         let alt = cur_dist + 1;
                         let new_state = State {
@@ -175,12 +168,12 @@ fn solve1(door_codes: &[NumKey]) -> FxHashMap<State, i32> {
                 }
                 // pushing activate on dirpad2 -> hits key on dirpad1
                 DirKey::Activate => {
-                    if let Some(key2) = dirpad.get(st.pos_dirpad2) {
+                    if let Some(key2) = DIRPAD.get(st.pos_dirpad2) {
                         match key2 {
                             DirKey::Blank => {}
                             DirKey::Dir(d) => {
                                 let pos1 = st.pos_dirpad1 + d.into();
-                                let key1 = dirpad.get(pos1);
+                                let key1 = DIRPAD.get(pos1);
                                 if let Some(DirKey::Activate) | Some(DirKey::Dir(..)) = key1 {
                                     let alt = cur_dist + 1;
                                     let new_state = State {
@@ -197,12 +190,12 @@ fn solve1(door_codes: &[NumKey]) -> FxHashMap<State, i32> {
                             }
                             // pushing activate on dirpad1 -> hit key on numpad
                             DirKey::Activate => {
-                                if let Some(key1) = dirpad.get(st.pos_dirpad1) {
+                                if let Some(key1) = DIRPAD.get(st.pos_dirpad1) {
                                     match key1 {
                                         DirKey::Blank => {}
                                         DirKey::Dir(d) => {
                                             let posn = st.pos_numpad + d.into();
-                                            let keyn = numpad.get(posn);
+                                            let keyn = NUMPAD.get(posn);
                                             if let Some(NumKey::Activate) | Some(NumKey::Val(..)) =
                                                 keyn
                                             {
@@ -223,7 +216,7 @@ fn solve1(door_codes: &[NumKey]) -> FxHashMap<State, i32> {
                                         // pushing activate on numpad enters a number
                                         DirKey::Activate => {
                                             let expected = door_codes[st.num_completed];
-                                            if numpad.get(st.pos_numpad) == Some(expected) {
+                                            if NUMPAD.get(st.pos_numpad) == Some(expected) {
                                                 println!(
                                                     "Got {expected:?} for {} in {:?}",
                                                     st.num_completed, door_codes
@@ -265,6 +258,7 @@ fn part1(problem: &Problem) -> Result<usize> {
 
     for codes in &problem.door_codes {
         let dist = solve1(&codes.key_codes);
+        println!("dist map size: {}", dist.len());
         for (st, d) in dist {
             if st.num_completed == 4 {
                 let value = d * codes.numeric_part;
@@ -276,7 +270,134 @@ fn part1(problem: &Problem) -> Result<usize> {
     Ok(total)
 }
 
+#[derive(Copy, Debug, Clone, Hash, Eq, PartialEq)]
+struct State2 {
+    num_completed: usize,
+    pos: Point,
+}
+
+#[derive(Clone, Debug)]
+struct Dist {
+    cost: i32,
+    origins: ArrayVec<State2, 4>,
+}
+impl Dist {
+    fn new(cost: i32) -> Self {
+        Self {
+            cost,
+            origins: ArrayVec::default(),
+        }
+    }
+}
+
+fn min_moves_path_numpad(codes: &[NumKey]) -> FxHashMap<State2, Dist> {
+    let init_state = State2 {
+        num_completed: 0,
+        pos: NumPad::initial_pos(),
+    };
+    let mut q = PriorityQueue::new();
+    let mut dist = FxHashMap::<State2, Dist>::default();
+
+    q.push(init_state, 0);
+    dist.insert(init_state, Dist::new(0));
+
+    while let Some((st, prio)) = q.pop() {
+        let cur_dist = -prio;
+        for k in DirKey::inputs() {
+            match k {
+                DirKey::Blank => {}
+                DirKey::Dir(d) => {
+                    let next_pos = st.pos + d.into();
+                    if let Some(NumKey::Activate) | Some(NumKey::Val(..)) = NUMPAD.get(next_pos) {
+                        let alt = cur_dist + 1;
+                        let next_state = State2 {
+                            pos: next_pos,
+                            ..st
+                        };
+                        let existing = dist.entry(next_state).or_insert(Dist::new(i32::MAX));
+                        if alt == existing.cost {
+                            existing.origins.push(st);
+                        } else if alt < existing.cost {
+                            *existing = Dist::new(alt);
+                            existing.origins.push(st);
+                            q.push(next_state, -alt);
+                        }
+                    }
+                }
+                DirKey::Activate => {
+                    // check matches expected, or ignore
+                    let expected = codes[st.num_completed];
+                    if NUMPAD.get(st.pos) == Some(expected) {
+                        println!("Got {expected:?} for {} in {:?}", st.num_completed, codes);
+
+                        let alt = cur_dist + 1;
+                        let next_state = State2 {
+                            num_completed: st.num_completed + 1,
+                            ..st
+                        };
+
+                        let existing = dist.entry(next_state).or_insert(Dist::new(i32::MAX));
+                        
+                        // advance to new state if we're not complete
+                        if alt < existing.cost {
+                            if let NumKey::Val(..) = expected {
+                                // advance to next digit and queue it for exploration
+                                q.push(next_state.clone(), -alt);
+                            }
+                        }
+
+                        // update cost
+                        if alt == existing.cost {
+                            existing.origins.push(st);
+                        } else if alt < existing.cost {
+                            *existing = Dist::new(alt);
+                            existing.origins.push(st);
+                        }
+
+                        
+                    }
+                }
+            }
+        }
+    }
+
+    dist
+}
+
+fn trace_paths_rev(
+    prior: &[State2],
+    dist: &FxHashMap<State2, Dist>,
+    end: State2,
+) -> Vec<Vec<State2>> {
+    let init = dist.get(&end).unwrap();
+    let mut results = vec![];
+    for origin in &init.origins {
+        println!("at {init:?} with origin {origin:?}");
+        let mut new_prior: Vec<_> = prior.iter().copied().collect();
+        new_prior.push(*origin);
+        let res = trace_paths_rev(&new_prior, dist, *origin);
+        results.extend_from_slice(&res);
+    }
+    results
+}
+
 fn part2(problem: &Problem) -> Result<usize> {
+    println!("------- tracing paths --------------");
+
+    let min_paths_numpad = min_moves_path_numpad(&problem.door_codes[0].key_codes);
+    println!("{min_paths_numpad:?}");
+
+    let reverse_paths = trace_paths_rev(
+        &[],
+        &min_paths_numpad,
+        State2 {
+            num_completed: 4,
+            pos: Point::new(2, 3),
+        },
+    );
+    println!("Reverse paths -------");
+    println!("{reverse_paths:?}");
+
     Ok(2)
 }
 
@@ -326,7 +447,7 @@ mod tests {
     fn part2_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
         let count = part2(&problem)?;
-        assert_eq!(count, 2);
+        assert_eq!(count, 0);
         Ok(())
     }
 }

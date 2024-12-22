@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{iter, time::Instant};
 
 use anyhow::Result;
 use common::OptionAnyhow;
@@ -38,8 +38,60 @@ fn part1(problem: &Problem) -> Result<i64> {
     Ok(total)
 }
 
-fn part2(problem: &Problem) -> Result<usize> {
-    Ok(2)
+fn part2(problem: &Problem) -> Result<i64> {
+    
+    let mut nums = vec![];
+    let mut diffs = vec![];
+    for init in &problem.initial_numbers {
+        // 2000 price CHANGES after initial; sequence includes initial; take 2001
+        let nn: Vec<i8> = iterate(*init).take(2001).map(|n| (n % 10) as i8).collect();
+        let dd: Vec<i8> = nn.windows(2).map(|w| w[1] - w[0]).collect();
+        nums.push(nn);
+        diffs.push(dd);
+    }
+
+    let mut best_tot = 0;
+
+    let r = -9..10_i8;
+    for a in r.clone() {
+        for b in r.clone() {
+            println!("Checking [{a},{b},..]");
+            // if (a+b).abs() > 20 {
+            //     continue;
+            // }
+            for c in r.clone() {
+                // if (a+b+c).abs() > 20 {
+                //     continue;
+                // }
+                for d in r.clone() {
+                    // if (a+b+c+d).abs() > 20 {
+                    //     continue;
+                    // }
+                    let seq = [a,b,c,d];
+                    let mut tot = 0;
+                    
+                    // find sale prices for each monkey
+                    for (nn,dd) in iter::zip(&nums, &diffs) {
+                        let found_loc = dd.windows(4).position(|w| w == seq);
+                        if let Some(loc) = found_loc {
+                            let price = nn[loc+4] as i64;
+                            tot += price;
+                            // if seq == [-2,1,-1,3] {
+                            //     println!("seq {seq:?} price {price} {:?}", &nn[loc..loc+5]);
+                            // }
+                        }
+                    }
+
+                    if tot > best_tot {
+                        best_tot = tot;
+                        println!("new best {seq:?} for total {best_tot}");
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(best_tot)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -53,6 +105,7 @@ fn main() -> anyhow::Result<()> {
     let t2 = Instant::now();
     let count_part2 = part2(&problem)?;
     println!("Part 2 result is {count_part2} (took {:?})", t2.elapsed());
+    // note: 1608 is too low.
 
     Ok(())
 }
@@ -66,6 +119,12 @@ mod tests {
         1
         10
         100
+        2024
+    "};
+    const EXAMPLE2: &str = indoc! {"
+        1
+        2
+        3
         2024
     "};
 
@@ -99,9 +158,9 @@ mod tests {
 
     #[test]
     fn part2_correct() -> Result<()> {
-        let problem = parse_input(EXAMPLE)?;
+        let problem = parse_input(EXAMPLE2)?;
         let count = part2(&problem)?;
-        assert_eq!(count, 2);
+        assert_eq!(count, 23);
         Ok(())
     }
 }

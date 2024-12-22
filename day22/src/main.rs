@@ -38,8 +38,8 @@ fn part1(problem: &Problem) -> Result<i64> {
     Ok(total)
 }
 
+// simple brute force is fast enough -- come back later and improve for fun
 fn part2(problem: &Problem) -> Result<i64> {
-    
     let mut nums = vec![];
     let mut diffs = vec![];
     for init in &problem.initial_numbers {
@@ -56,29 +56,17 @@ fn part2(problem: &Problem) -> Result<i64> {
     for a in r.clone() {
         for b in r.clone() {
             println!("Checking [{a},{b},..]");
-            // if (a+b).abs() > 20 {
-            //     continue;
-            // }
             for c in r.clone() {
-                // if (a+b+c).abs() > 20 {
-                //     continue;
-                // }
                 for d in r.clone() {
-                    // if (a+b+c+d).abs() > 20 {
-                    //     continue;
-                    // }
-                    let seq = [a,b,c,d];
+                    let seq = [a, b, c, d];
                     let mut tot = 0;
-                    
+
                     // find sale prices for each monkey
-                    for (nn,dd) in iter::zip(&nums, &diffs) {
+                    for (nn, dd) in iter::zip(&nums, &diffs) {
                         let found_loc = dd.windows(4).position(|w| w == seq);
                         if let Some(loc) = found_loc {
-                            let price = nn[loc+4] as i64;
+                            let price = nn[loc + 4] as i64;
                             tot += price;
-                            // if seq == [-2,1,-1,3] {
-                            //     println!("seq {seq:?} price {price} {:?}", &nn[loc..loc+5]);
-                            // }
                         }
                     }
 
@@ -105,7 +93,6 @@ fn main() -> anyhow::Result<()> {
     let t2 = Instant::now();
     let count_part2 = part2(&problem)?;
     println!("Part 2 result is {count_part2} (took {:?})", t2.elapsed());
-    // note: 1608 is too low.
 
     Ok(())
 }

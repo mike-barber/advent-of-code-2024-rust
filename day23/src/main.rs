@@ -1,13 +1,13 @@
 use std::{
     cmp::Ordering,
-    collections::{BTreeSet, HashSet},
+    collections::BTreeSet,
     fmt::{Display, Write},
     time::Instant,
 };
 
 use anyhow::Result;
 use common::OptionAnyhow;
-use fxhash::{FxHashMap, FxHashSet};
+use fxhash::FxHashSet;
 use itertools::Itertools;
 
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
@@ -53,23 +53,9 @@ impl<const N: usize> Display for SetN<N> {
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
-struct LinkSet(Vec<Link>);
-impl LinkSet {
-    fn new(mut links: Vec<Link>) -> Self {
-        links.sort();
-        Self(links)
-    }
-}
-impl Display for LinkSet {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.iter().map(Link::to_string).join("-"))
-    }
-}
-
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 struct NetworkSet(BTreeSet<Node>);
 impl NetworkSet {
-    fn new(mut links: &[Node]) -> Self {
+    fn new(links: &[Node]) -> Self {
         Self(links.iter().copied().collect())
     }
 }
@@ -157,27 +143,13 @@ fn part1(problem: &Problem) -> Result<usize> {
     Ok(triplets.len())
 }
 
-fn factorial(mut n: usize) -> usize {
-    if n == 0 {
-        return 1;
-    }
-    let mut product = n;
-    for n in (1..n).rev() {
-        product *= n;
-    }
-    product
-}
-
-fn combinations(n: usize, x: usize) -> usize {
-    factorial(n) / factorial(n - x) / factorial(x)
-}
-
 fn grow_larger_sets(
-    links: &HashSet<Link>,
+    links: &FxHashSet<Link>,
     cur_size: usize,
-    cur_sets: &HashSet<NetworkSet>,
-) -> HashSet<NetworkSet> {
-    let mut larger: HashSet<NetworkSet> = HashSet::default();
+    cur_sets: &FxHashSet<NetworkSet>,
+) -> FxHashSet<NetworkSet> {
+    let mut larger: FxHashSet<NetworkSet> = FxHashSet::default();
+
     for (i1, s1) in cur_sets.iter().enumerate() {
         for s2 in cur_sets.iter().skip(i1 + 1) {
             assert_eq!(s1.0.len(), cur_size);
@@ -209,19 +181,19 @@ fn grow_larger_sets(
 }
 
 fn part2(problem: &Problem) -> Result<String> {
-    let links: HashSet<Link> = problem.links.iter().copied().collect();
+    let links: FxHashSet<Link> = problem.links.iter().copied().collect();
 
     let mut cur_sets = problem
         .links
         .iter()
-        .map(|link| NetworkSet::new(&vec![link.0, link.1]))
+        .map(|link| NetworkSet::new(&[link.0, link.1]))
         .collect();
     let mut cur_size = 2;
     loop {
         let t = Instant::now();
         let larger = grow_larger_sets(&links, cur_size, &cur_sets);
         println!("cur size {cur_size} took {:?}", t.elapsed());
-        if larger.len() == 0 {
+        if larger.is_empty() {
             break;
         } else {
             cur_sets = larger;
@@ -312,23 +284,5 @@ mod tests {
         let code = part2(&problem)?;
         assert_eq!(code, "co,de,ka,ta");
         Ok(())
-    }
-
-    #[test]
-    fn factorial_correct() {
-        assert_eq!(factorial(0), 1);
-        assert_eq!(factorial(1), 1);
-        assert_eq!(factorial(2), 2);
-        assert_eq!(factorial(3), 6);
-        assert_eq!(factorial(4), 24);
-    }
-
-    #[test]
-    fn combinations_correct() {
-        assert_eq!(combinations(2, 2), 1);
-        assert_eq!(combinations(3, 2), 3);
-        assert_eq!(combinations(4, 2), 6);
-        assert_eq!(combinations(5, 2), 10);
-        assert_eq!(combinations(6, 2), 15);
     }
 }

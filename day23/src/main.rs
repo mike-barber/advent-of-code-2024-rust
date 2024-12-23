@@ -78,6 +78,11 @@ impl Display for NetworkSet {
         write!(f, "{}", self.0.iter().map(Node::to_string).join(","))
     }
 }
+impl From<BTreeSet<Node>> for NetworkSet {
+    fn from(value: BTreeSet<Node>) -> Self {
+        Self(value)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Problem {
@@ -179,39 +184,32 @@ fn grow_larger_sets(
             assert_eq!(s2.0.len(), cur_size);
             assert_ne!(s1, s2);
 
-            let intersection: BTreeSet<Node> = s1.0.intersection(&s2.0).copied().collect();
-            let d1: Vec<Node> = s1.0.difference(&intersection).copied().collect();
-            let d2: Vec<Node> = s2.0.difference(&intersection).copied().collect();
-            if d1.len() == 1 && d2.len() == 1 {
-                let required_link = Link::new(d1[0], d2[0]);
-                if links.contains(&required_link) {
-                    let merged: Vec<_> = s1.0.union(&s2.0).copied().collect();
-                    let merged = NetworkSet::new(&merged);
-                    larger.insert(merged);
+            let mut diff1 = s1.0.difference(&s2.0);
+            let mut diff2 = s2.0.difference(&s1.0);
+
+            if let (Some(d1), None) = (diff1.next(), diff1.next()) {
+                if let (Some(d2), None) = (diff2.next(), diff2.next()) {
+                    let required_link = Link::new(*d1, *d2);
+                    if links.contains(&required_link) {
+                        let mut merged = s1.0.clone();
+                        merged.insert(*d1);
+                        merged.insert(*d2);
+                        larger.insert(merged.into());
+                    }
                 }
             }
         }
     }
-    for s3 in &larger {
-        println!("{s3}");
+    for s3 in larger.iter().take(10) {
+        println!("  {s3}");
     }
-    println!("count {}", larger.len());
+    println!("--> count {}", larger.len());
 
     larger
 }
 
 fn part2(problem: &Problem) -> Result<String> {
     let links: HashSet<Link> = problem.links.iter().copied().collect();
-
-    // let sets2: HashSet<NetworkSet> = problem
-    //     .links
-    //     .iter()
-    //     .map(|link| NetworkSet::new(&vec![link.0, link.1]))
-    //     .collect();
-
-    // let sets3 = grow_larger_sets(&links, 2, &sets2);
-    // let sets4 = grow_larger_sets(&links, 3, &sets3);
-    // let set5 = grow_larger_sets(&links, 4, &sets4);
 
     let mut cur_sets = problem
         .links
@@ -220,7 +218,9 @@ fn part2(problem: &Problem) -> Result<String> {
         .collect();
     let mut cur_size = 2;
     loop {
+        let t = Instant::now();
         let larger = grow_larger_sets(&links, cur_size, &cur_sets);
+        println!("cur size {cur_size} took {:?}", t.elapsed());
         if larger.len() == 0 {
             break;
         } else {

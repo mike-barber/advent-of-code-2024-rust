@@ -276,10 +276,17 @@ struct State2 {
     pos: Point,
 }
 
+#[derive(Copy, Debug, Clone, Hash, Eq, PartialEq)]
+struct StateAction {
+    num_completed: usize,
+    pos: Point,
+    action: DirKey,
+}
+
 #[derive(Clone, Debug)]
 struct Dist {
     cost: i32,
-    origins: ArrayVec<State2, 4>,
+    origins: ArrayVec<StateAction, 4>,
 }
 impl Dist {
     fn new(cost: i32) -> Self {
@@ -314,12 +321,20 @@ fn min_moves_path_numpad(codes: &[NumKey]) -> FxHashMap<State2, Dist> {
                             pos: next_pos,
                             ..st
                         };
+
+                        // prior state and action that went from it to here
+                        let state_action = StateAction {
+                            num_completed: st.num_completed,
+                            pos: st.pos,
+                            action: DirKey::Dir(d),
+                        };
+
                         let existing = dist.entry(next_state).or_insert(Dist::new(i32::MAX));
                         if alt == existing.cost {
-                            existing.origins.push(st);
+                            existing.origins.push(state_action);
                         } else if alt < existing.cost {
                             *existing = Dist::new(alt);
-                            existing.origins.push(st);
+                            existing.origins.push(state_action);
                             q.push(next_state, -alt);
                         }
                     }
@@ -328,7 +343,7 @@ fn min_moves_path_numpad(codes: &[NumKey]) -> FxHashMap<State2, Dist> {
                     // check matches expected, or ignore
                     let expected = codes[st.num_completed];
                     if NUMPAD.get(st.pos) == Some(expected) {
-                        println!("Got {expected:?} for {} in {:?}", st.num_completed, codes);
+                        //println!("Got {expected:?} for {} in {:?}", st.num_completed, codes);
 
                         let alt = cur_dist + 1;
                         let next_state = State2 {
@@ -336,8 +351,15 @@ fn min_moves_path_numpad(codes: &[NumKey]) -> FxHashMap<State2, Dist> {
                             ..st
                         };
 
+                        // prior state and action that went from it to here
+                        let state_action = StateAction {
+                            num_completed: st.num_completed,
+                            pos: st.pos,
+                            action: DirKey::Activate,
+                        };
+
                         let existing = dist.entry(next_state).or_insert(Dist::new(i32::MAX));
-                        
+
                         // advance to new state if we're not complete
                         if alt < existing.cost {
                             if let NumKey::Val(..) = expected {
@@ -348,13 +370,99 @@ fn min_moves_path_numpad(codes: &[NumKey]) -> FxHashMap<State2, Dist> {
 
                         // update cost
                         if alt == existing.cost {
-                            existing.origins.push(st);
+                            existing.origins.push(state_action);
                         } else if alt < existing.cost {
                             *existing = Dist::new(alt);
-                            existing.origins.push(st);
+                            existing.origins.push(state_action);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    dist
+}
+
+fn min_moves_path_dirpad(codes: &[DirKey]) -> FxHashMap<State2, Dist> {
+    let init_state = State2 {
+        num_completed: 0,
+        pos: DirPad::initial_pos(),
+    };
+    let mut q = PriorityQueue::new();
+    let mut dist = FxHashMap::<State2, Dist>::default();
+
+    q.push(init_state, 0);
+    dist.insert(init_state, Dist::new(0));
+
+    while let Some((st, prio)) = q.pop() {
+        let cur_dist = -prio;
+        for k in DirKey::inputs() {
+            match k {
+                DirKey::Blank => {}
+                DirKey::Dir(d) => {
+                    let next_pos = st.pos + d.into();
+                    if let Some(DirKey::Activate) | Some(DirKey::Dir(..)) = DIRPAD.get(next_pos) {
+                        let alt = cur_dist + 1;
+                        let next_state = State2 {
+                            pos: next_pos,
+                            ..st
+                        };
+
+                        // prior state and action that went from it to here
+                        let state_action = StateAction {
+                            num_completed: st.num_completed,
+                            pos: st.pos,
+                            action: DirKey::Dir(d),
+                        };
+
+                        let existing = dist.entry(next_state).or_insert(Dist::new(i32::MAX));
+                        if alt == existing.cost {
+                            existing.origins.push(state_action);
+                        } else if alt < existing.cost {
+                            *existing = Dist::new(alt);
+                            existing.origins.push(state_action);
+                            q.push(next_state, -alt);
+                        }
+                    }
+                }
+                DirKey::Activate => {
+                    // check matches expected, or ignore
+                    let expected = codes[st.num_completed];
+                    if DIRPAD.get(st.pos) == Some(expected) {
+                        //println!("Got {expected:?} for {} in {:?}", st.num_completed, codes);
+
+                        let alt = cur_dist + 1;
+                        let next_state = State2 {
+                            num_completed: st.num_completed + 1,
+                            ..st
+                        };
+
+                        // prior state and action that went from it to here
+                        let state_action = StateAction {
+                            num_completed: st.num_completed,
+                            pos: st.pos,
+                            action: DirKey::Activate,
+                        };
+
+                        let existing = dist.entry(next_state).or_insert(Dist::new(i32::MAX));
+
+                        // advance to new state if we're not complete
+                        if alt < existing.cost {
+                            // TODO: check this isn't the last action - check num_completed.
+                            if next_state.num_completed < codes.len() {
+                                // advance to next digit and queue it for exploration
+                                q.push(next_state.clone(), -alt);
+                            }
                         }
 
-                        
+                        // update cost
+                        if alt == existing.cost {
+                            existing.origins.push(state_action);
+                        } else if alt < existing.cost {
+                            *existing = Dist::new(alt);
+                            existing.origins.push(state_action);
+                        }
                     }
                 }
             }
@@ -365,20 +473,42 @@ fn min_moves_path_numpad(codes: &[NumKey]) -> FxHashMap<State2, Dist> {
 }
 
 fn trace_paths_rev(
-    prior: &[State2],
+    prior: &[DirKey],
     dist: &FxHashMap<State2, Dist>,
     end: State2,
-) -> Vec<Vec<State2>> {
+    paths: &mut Vec<Vec<DirKey>>,
+    best_len: &mut usize,
+) {
     let init = dist.get(&end).unwrap();
-    let mut results = vec![];
-    for origin in &init.origins {
-        println!("at {init:?} with origin {origin:?}");
-        let mut new_prior: Vec<_> = prior.iter().copied().collect();
-        new_prior.push(*origin);
-        let res = trace_paths_rev(&new_prior, dist, *origin);
-        results.extend_from_slice(&res);
+
+    // start position -- record path; and if we find a new shorter path,
+    // throw away all the longer ones recorded previously.
+    if init.origins.is_empty() {
+        if prior.len() <= *best_len {
+            let path = prior.iter().copied().rev().collect();
+            if prior.len() < *best_len {
+                paths.clear();
+                *best_len = prior.len();
+            }
+            paths.push(path);
+        }
     }
-    results
+
+    for origin in &init.origins {
+        //println!("at {init:?} with origin {origin:?}");
+        let mut new_prior: Vec<_> = prior.iter().copied().collect();
+        new_prior.push(origin.action);
+        trace_paths_rev(
+            &new_prior,
+            dist,
+            State2 {
+                num_completed: origin.num_completed,
+                pos: origin.pos,
+            },
+            paths,
+            best_len,
+        );
+    }
 }
 
 fn part2(problem: &Problem) -> Result<usize> {
@@ -387,17 +517,84 @@ fn part2(problem: &Problem) -> Result<usize> {
     let min_paths_numpad = min_moves_path_numpad(&problem.door_codes[0].key_codes);
     println!("{min_paths_numpad:?}");
 
-    let reverse_paths = trace_paths_rev(
+    let mut paths = vec![];
+    let mut best_len1 = usize::MAX;
+    trace_paths_rev(
         &[],
         &min_paths_numpad,
         State2 {
             num_completed: 4,
             pos: Point::new(2, 3),
         },
+        &mut paths,
+        &mut best_len1,
     );
-    println!("Reverse paths -------");
-    println!("{reverse_paths:?}");
+    println!("Forward paths 1 -> {} -------", paths.len());
+    for path in &paths {
+        println!("{path:?}");
+    }
 
+    // find sequences required for paths
+    let mut best_len2 = usize::MAX;
+    let mut paths2 = vec![];
+    for path_idx in 0..paths.len() {
+        println!("==== path {path_idx} =====");
+
+        let prev_path = &paths[path_idx];
+        let prev_path_end = State2 {
+            num_completed: prev_path.len(),
+            pos: DirPad::initial_pos(), // always activate
+        };
+        // println!(
+        //     "searching len {len} for path {prev_path:?}",
+        //     len = prev_path.len()
+        // );
+        let min_paths_dirpad = min_moves_path_dirpad(&prev_path);
+        // for (st, d) in &min_paths_dirpad1 {
+        //     println!("{st:?} => {d:?}");
+        // }
+        trace_paths_rev(
+            &[],
+            &min_paths_dirpad,
+            prev_path_end,
+            &mut paths2,
+            &mut best_len2,
+        );
+    }
+    println!("Forward paths 2 -> {} -------", paths2.len());
+    for path in &paths2 {
+        println!("{len}: {path:?}", len = path.len());
+    }
+
+    // find actions required on entry keypad
+    let mut best_len3 = usize::MAX;
+    let mut paths3 = vec![];
+    for path_idx in 0..paths2.len() {
+        let prev_path = &paths2[path_idx];
+        let prev_path_end = State2 {
+            num_completed: prev_path.len(),
+            pos: DirPad::initial_pos(), // always activate
+        };
+        let min_paths_dirpad = min_moves_path_dirpad(&prev_path);
+        trace_paths_rev(
+            &[],
+            &min_paths_dirpad,
+            prev_path_end,
+            &mut paths3,
+            &mut best_len3,
+        );
+    }
+    println!("Forward paths 3 -> {} -------", paths3.len());
+    // for path in &paths3 {
+    //     println!("{len}: {path:?}", len = path.len());
+    // }
+    for path in paths3.iter().take(10) {
+        println!("{len}: {path:?}", len = path.len());
+    }
+
+    // We go exponential complexity on the next keypad back trying to chase 68 steps.
+    // Another approach is needed.
+    
     Ok(2)
 }
 

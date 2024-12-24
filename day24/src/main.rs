@@ -171,6 +171,10 @@ fn part2(problem: &Problem) -> Result<String> {
         initial_values,
     } = problem.clone();
 
+    // these were found by inspection and running the tests to find
+    // where each first bit went wrong; could probably automate this
+    // process by trying to swap all the recently-added dependencies that
+    // we're printing out for each new bit.
     let swaps = [
         ("z17", "cmv"), // swap 1 - this fixes bit 17
         ("z23", "rmj"), // swap 2 - this fixes bit 22

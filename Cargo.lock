@@ -348,6 +348,7 @@ dependencies = [
  "anyhow",
  "arrayvec",
  "common",
+ "fxhash",
  "indoc",
  "itertools",
  "nom",

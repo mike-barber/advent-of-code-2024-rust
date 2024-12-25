@@ -606,9 +606,8 @@ fn dirkey_seq(delta: Point) -> &'static [DirKey] {
 }
 
 fn dirkey_move_sequences(from: Point, to: Point) -> Vec<Vec<DirKey>> {
-    
-    let Point{x,y} = to - from;
-    
+    let Point { x, y } = to - from;
+
     let mut moves = vec![];
     let xm = if x > 0 {
         DirKey::Dir(ScreenDir::R)
@@ -619,7 +618,7 @@ fn dirkey_move_sequences(from: Point, to: Point) -> Vec<Vec<DirKey>> {
         moves.push(xm);
     }
 
-    let ym = if y >0 {
+    let ym = if y > 0 {
         DirKey::Dir(ScreenDir::D)
     } else {
         DirKey::Dir(ScreenDir::U)
@@ -630,9 +629,7 @@ fn dirkey_move_sequences(from: Point, to: Point) -> Vec<Vec<DirKey>> {
 
     let mut sequences = vec![];
     let k = moves.len();
-    println!("moves {moves:?}");
     for perm in moves.into_iter().permutations(k) {
-        println!("   p> {perm:?}");
         let mut pos = from;
         for mv in perm.iter().copied() {
             if let DirKey::Dir(d) = mv {
@@ -645,27 +642,28 @@ fn dirkey_move_sequences(from: Point, to: Point) -> Vec<Vec<DirKey>> {
                 panic!("not a direction")
             }
         }
+        debug_assert_eq!(pos, to);
         sequences.push(perm);
     }
-    
+
     sequences
 }
 
 struct Solver {
     max_level: usize,
-    levels_cache: Vec<FxHashMap<Box<[DirKey]>, i64>>
+    levels_cache: Vec<FxHashMap<Box<[DirKey]>, i64>>,
 }
 impl Solver {
     fn new(max_level: usize) -> Self {
         Solver {
             max_level,
-            levels_cache: vec![FxHashMap::default(); max_level+1]
+            levels_cache: vec![FxHashMap::default(); max_level + 1],
         }
     }
 
     fn min_moves_for_seq(&mut self, seq: &[DirKey], level: usize) -> i64 {
-        // final level - work out number of inputs required - really the penultimate level,
-        // since we're going to input keys directly on the final keypad.
+        // final level - work out number of inputs required since we're going to
+        // input keys directly on the final keypad - it's just a count.
         if level == self.max_level {
             // every sequence for this level should return to "Activate"
             debug_assert_eq!(seq[seq.len() - 1], DirKey::Activate);
@@ -675,26 +673,26 @@ impl Solver {
         if let Some(total) = self.levels_cache[level].get(seq) {
             return *total;
         }
-    
+
         // intermediate levels - split the sequence up into sub sequences that return
         // to Activate, and recursively calculate distance on those.
         let mut pos = DirPad::initial_pos();
         let mut total_distance = 0;
         for key in seq {
             let next_pos = DirPad::position_for(*key);
-            
+
             // let delta = next_pos - pos;
             // let sub_seq = dirkey_seq(delta);
             //let moves_required = self.min_moves_for_seq(sub_seq, level + 1);
             //println!("required {moves_required} for {sub_seq:?} for {pos:?}->{next_pos:?} key {key:?}");
             let mut min_moves = i64::MAX;
             for mut sub_seq in dirkey_move_sequences(pos, next_pos) {
-                // activate after moves
+                // activate required after moves
                 sub_seq.push(DirKey::Activate);
                 let moves_required = self.min_moves_for_seq(sub_seq.as_slice(), level + 1);
                 min_moves = min_moves.min(moves_required);
             }
-    
+
             total_distance += min_moves;
             pos = next_pos;
         }
@@ -703,8 +701,6 @@ impl Solver {
         total_distance
     }
 }
-
-
 
 fn part2_sub_paths(problem: &Problem, dirpad_depth: usize) -> Result<i64> {
     let mut total = 0;
@@ -737,12 +733,12 @@ fn part2_moves_required(door_codes: &[NumKey], dirpad_depth: usize) -> Result<i6
         &mut best_len1,
     );
     println!("Forward paths 1 -> {} -------", paths.len());
-    
+
     let mut min_cost = i64::MAX;
     for path in &paths {
-        let mut solver = Solver::new(dirpad_depth);  
         let mut total_cost = 0;
         for seq in path.split_inclusive(|k| *k == DirKey::Activate) {
+            let mut solver = Solver::new(dirpad_depth);
             let dir_key_cost = solver.min_moves_for_seq(seq, 1);
             total_cost += dir_key_cost;
         }
@@ -852,17 +848,20 @@ fn main() -> anyhow::Result<()> {
     println!("Part 1 alternate is {count_part2} (took {:?})", t.elapsed());
 
     let t = Instant::now();
+    let count_part2 = part2(&problem)?;
+    println!("Part 2 earlier result is {count_part2} (took {:?})", t.elapsed());
+
+    let t = Instant::now();
     let count_part2 = part2_sub_paths(&problem, 26)?;
     println!("Part 2 result is {count_part2} (took {:?})", t.elapsed());
     // incorrect: 83277557903594 is too low (25)
     // incorrect: 508471041020264 is too high (27 levels, wrong of course)
-    
+    // BETWEEN these ^v
     // incorrect: 205777128372550 is too low (26 levels - 25+1, and correct for part1)
     // alt:       401006112372796 by moving down FIRST - also incorrect.
     // alt:       297883849089484 by also moving up FIRST
     // new:       151942058133744
     // ^ the fact that these are all different is... a problem.
-
 
     Ok(())
 }
@@ -898,6 +897,14 @@ mod tests {
     #[test]
     fn part1_alternate_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
+        let count = part2_sub_paths(&problem, 3)?;
+        assert_eq!(count, 126384);
+        Ok(())
+    }
+
+    #[test]
+    fn part1_alternate_moves_correct() -> Result<()> {
+        let problem = parse_input(EXAMPLE)?;
         let level = 3;
         assert_eq!(
             68,
@@ -932,7 +939,6 @@ mod tests {
 
     #[test]
     fn dirkey_moves_correct() {
-        
         let mut solver = Solver::new(1);
         let moves = solver.min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0);
         assert_eq!(moves, 2);

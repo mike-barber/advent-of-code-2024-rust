@@ -1,10 +1,11 @@
-use std::{i32, io::Lines, time::Instant};
+use std::{i32, io::Lines, iter, time::Instant};
 
 use anyhow::{bail, Result};
 use arrayvec::ArrayVec;
 use common::cartesian::{Point, ScreenDir};
 use fxhash::FxHashMap;
 use indoc::indoc;
+use itertools::{Itertools, Permutations};
 use nalgebra::{matrix, Matrix2x3, Matrix4x3};
 use priority_queue::PriorityQueue;
 
@@ -545,56 +546,56 @@ fn dirkey_seq(delta: Point) -> &'static [DirKey] {
         // down one row
         Point { x: 0, y: 1 } => [DirKey::Dir(ScreenDir::D), DirKey::Activate].as_slice(),
         Point { x: 1, y: 1 } => [
-            DirKey::Dir(ScreenDir::R),
             DirKey::Dir(ScreenDir::D),
+            DirKey::Dir(ScreenDir::R),
             DirKey::Activate,
         ]
         .as_slice(),
         Point { x: 2, y: 1 } => [
-            DirKey::Dir(ScreenDir::R),
-            DirKey::Dir(ScreenDir::R),
             DirKey::Dir(ScreenDir::D),
+            DirKey::Dir(ScreenDir::R),
+            DirKey::Dir(ScreenDir::R),
             DirKey::Activate,
         ]
         .as_slice(),
         Point { x: -1, y: 1 } => [
-            DirKey::Dir(ScreenDir::L),
             DirKey::Dir(ScreenDir::D),
+            DirKey::Dir(ScreenDir::L),
             DirKey::Activate,
         ]
         .as_slice(),
         Point { x: -2, y: 1 } => [
-            DirKey::Dir(ScreenDir::L),
-            DirKey::Dir(ScreenDir::L),
             DirKey::Dir(ScreenDir::D),
+            DirKey::Dir(ScreenDir::L),
+            DirKey::Dir(ScreenDir::L),
             DirKey::Activate,
         ]
         .as_slice(),
         // up one row
         Point { x: 0, y: -1 } => [DirKey::Dir(ScreenDir::U), DirKey::Activate].as_slice(),
         Point { x: 1, y: -1 } => [
-            DirKey::Dir(ScreenDir::R),
             DirKey::Dir(ScreenDir::U),
+            DirKey::Dir(ScreenDir::R),
             DirKey::Activate,
         ]
         .as_slice(),
         Point { x: 2, y: -1 } => [
-            DirKey::Dir(ScreenDir::R),
-            DirKey::Dir(ScreenDir::R),
             DirKey::Dir(ScreenDir::U),
+            DirKey::Dir(ScreenDir::R),
+            DirKey::Dir(ScreenDir::R),
             DirKey::Activate,
         ]
         .as_slice(),
         Point { x: -1, y: -1 } => [
-            DirKey::Dir(ScreenDir::L),
             DirKey::Dir(ScreenDir::U),
+            DirKey::Dir(ScreenDir::L),
             DirKey::Activate,
         ]
         .as_slice(),
         Point { x: -2, y: -1 } => [
-            DirKey::Dir(ScreenDir::L),
-            DirKey::Dir(ScreenDir::L),
             DirKey::Dir(ScreenDir::U),
+            DirKey::Dir(ScreenDir::L),
+            DirKey::Dir(ScreenDir::L),
             DirKey::Activate,
         ]
         .as_slice(),
@@ -602,6 +603,52 @@ fn dirkey_seq(delta: Point) -> &'static [DirKey] {
             panic!("unexpected move required: {delta:?}");
         }
     }
+}
+
+fn dirkey_move_sequences(from: Point, to: Point) -> Vec<Vec<DirKey>> {
+    
+    let Point{x,y} = to - from;
+    
+    let mut moves = vec![];
+    let xm = if x > 0 {
+        DirKey::Dir(ScreenDir::R)
+    } else {
+        DirKey::Dir(ScreenDir::L)
+    };
+    for _ in 0..x.abs() {
+        moves.push(xm);
+    }
+
+    let ym = if y >0 {
+        DirKey::Dir(ScreenDir::D)
+    } else {
+        DirKey::Dir(ScreenDir::U)
+    };
+    for _ in 0..y.abs() {
+        moves.push(ym);
+    }
+
+    let mut sequences = vec![];
+    let k = moves.len();
+    println!("moves {moves:?}");
+    for perm in moves.into_iter().permutations(k) {
+        println!("   p> {perm:?}");
+        let mut pos = from;
+        for mv in perm.iter().copied() {
+            if let DirKey::Dir(d) = mv {
+                pos = pos + d.into();
+                if DIRPAD.get(pos).unwrap() == DirKey::Blank {
+                    //println!("skipping invalid move via blank key");
+                    continue;
+                }
+            } else {
+                panic!("not a direction")
+            }
+        }
+        sequences.push(perm);
+    }
+    
+    sequences
 }
 
 struct Solver {
@@ -635,12 +682,20 @@ impl Solver {
         let mut total_distance = 0;
         for key in seq {
             let next_pos = DirPad::position_for(*key);
-            let delta = next_pos - pos;
-            let sub_seq = dirkey_seq(delta);
-            let moves_required = self.min_moves_for_seq(sub_seq, level + 1);
+            
+            // let delta = next_pos - pos;
+            // let sub_seq = dirkey_seq(delta);
+            //let moves_required = self.min_moves_for_seq(sub_seq, level + 1);
             //println!("required {moves_required} for {sub_seq:?} for {pos:?}->{next_pos:?} key {key:?}");
+            let mut min_moves = i64::MAX;
+            for mut sub_seq in dirkey_move_sequences(pos, next_pos) {
+                // activate after moves
+                sub_seq.push(DirKey::Activate);
+                let moves_required = self.min_moves_for_seq(sub_seq.as_slice(), level + 1);
+                min_moves = min_moves.min(moves_required);
+            }
     
-            total_distance += moves_required;
+            total_distance += min_moves;
             pos = next_pos;
         }
 
@@ -800,9 +855,13 @@ fn main() -> anyhow::Result<()> {
     let count_part2 = part2_sub_paths(&problem, 26)?;
     println!("Part 2 result is {count_part2} (took {:?})", t.elapsed());
     // incorrect: 83277557903594 is too low (25)
-    // incorrect: 205777128372550 is too low (26 levels - 25+1, and correct for part1)
     // incorrect: 508471041020264 is too high (27 levels, wrong of course)
-
+    
+    // incorrect: 205777128372550 is too low (26 levels - 25+1, and correct for part1)
+    // alt:       401006112372796 by moving down FIRST - also incorrect.
+    // alt:       297883849089484 by also moving up FIRST
+    // new:       151942058133744
+    // ^ the fact that these are all different is... a problem.
 
 
     Ok(())
@@ -892,6 +951,6 @@ mod tests {
 
         let mut solver = Solver::new(20);
         let moves = solver.min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0);
-        assert_eq!(moves, 78037588);
+        assert_eq!(moves, 62153500);
     }
 }

@@ -631,19 +631,23 @@ fn dirkey_move_sequences(from: Point, to: Point) -> Vec<Vec<DirKey>> {
     let k = moves.len();
     for perm in moves.into_iter().permutations(k) {
         let mut pos = from;
+        let mut legal = true;
         for mv in perm.iter().copied() {
             if let DirKey::Dir(d) = mv {
                 pos = pos + d.into();
                 if DIRPAD.get(pos).unwrap() == DirKey::Blank {
-                    //println!("skipping invalid move via blank key");
-                    continue;
+                    legal = false;
+                    break;
                 }
             } else {
                 panic!("not a direction")
             }
         }
-        debug_assert_eq!(pos, to);
-        sequences.push(perm);
+
+        if legal {
+            debug_assert_eq!(pos, to);
+            sequences.push(perm);
+        }
     }
 
     sequences
@@ -847,9 +851,9 @@ fn main() -> anyhow::Result<()> {
     let count_part2 = part2_sub_paths(&problem, 3)?;
     println!("Part 1 alternate is {count_part2} (took {:?})", t.elapsed());
 
-    let t = Instant::now();
-    let count_part2 = part2(&problem)?;
-    println!("Part 2 earlier result is {count_part2} (took {:?})", t.elapsed());
+    // let t = Instant::now();
+    // let count_part2 = part2(&problem)?;
+    // println!("Part 2 earlier result is {count_part2} (took {:?})", t.elapsed());
 
     let t = Instant::now();
     let count_part2 = part2_sub_paths(&problem, 26)?;
@@ -861,6 +865,7 @@ fn main() -> anyhow::Result<()> {
     // alt:       401006112372796 by moving down FIRST - also incorrect.
     // alt:       297883849089484 by also moving up FIRST
     // new:       151942058133744
+    // new legal: 248919739734728 <- finally! silly bug in prev.
     // ^ the fact that these are all different is... a problem.
 
     Ok(())

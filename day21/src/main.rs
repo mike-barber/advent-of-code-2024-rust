@@ -84,6 +84,19 @@ impl DirPad {
     fn initial_pos() -> Point {
         Point::new(2, 0)
     }
+
+    fn position_for(key: DirKey) -> Point {
+        match key {
+            DirKey::Blank => Point::new(0, 0),
+            DirKey::Activate => Point::new(2, 0),
+            DirKey::Dir(screen_dir) => match screen_dir {
+                ScreenDir::U => Point::new(1, 0),
+                ScreenDir::L => Point::new(0, 1),
+                ScreenDir::D => Point::new(1, 1),
+                ScreenDir::R => Point::new(2, 1),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -511,6 +524,172 @@ fn trace_paths_rev(
     }
 }
 
+fn dirkey_seq(delta: Point) -> &'static [DirKey] {
+    match delta {
+        // horizontal
+        Point { x: 0, y: 0 } => [DirKey::Activate].as_slice(),
+        Point { x: 1, y: 0 } => [DirKey::Dir(ScreenDir::R), DirKey::Activate].as_slice(),
+        Point { x: 2, y: 0 } => [
+            DirKey::Dir(ScreenDir::R),
+            DirKey::Dir(ScreenDir::R),
+            DirKey::Activate,
+        ]
+        .as_slice(),
+        Point { x: -1, y: 0 } => [DirKey::Dir(ScreenDir::L), DirKey::Activate].as_slice(),
+        Point { x: -2, y: 0 } => [
+            DirKey::Dir(ScreenDir::L),
+            DirKey::Dir(ScreenDir::L),
+            DirKey::Activate,
+        ]
+        .as_slice(),
+        // down one row
+        Point { x: 0, y: 1 } => [DirKey::Dir(ScreenDir::D), DirKey::Activate].as_slice(),
+        Point { x: 1, y: 1 } => [
+            DirKey::Dir(ScreenDir::R),
+            DirKey::Dir(ScreenDir::D),
+            DirKey::Activate,
+        ]
+        .as_slice(),
+        Point { x: 2, y: 1 } => [
+            DirKey::Dir(ScreenDir::R),
+            DirKey::Dir(ScreenDir::R),
+            DirKey::Dir(ScreenDir::D),
+            DirKey::Activate,
+        ]
+        .as_slice(),
+        Point { x: -1, y: 1 } => [
+            DirKey::Dir(ScreenDir::L),
+            DirKey::Dir(ScreenDir::D),
+            DirKey::Activate,
+        ]
+        .as_slice(),
+        Point { x: -2, y: 1 } => [
+            DirKey::Dir(ScreenDir::L),
+            DirKey::Dir(ScreenDir::L),
+            DirKey::Dir(ScreenDir::D),
+            DirKey::Activate,
+        ]
+        .as_slice(),
+        // up one row
+        Point { x: 0, y: -1 } => [DirKey::Dir(ScreenDir::U), DirKey::Activate].as_slice(),
+        Point { x: 1, y: -1 } => [
+            DirKey::Dir(ScreenDir::R),
+            DirKey::Dir(ScreenDir::U),
+            DirKey::Activate,
+        ]
+        .as_slice(),
+        Point { x: 2, y: -1 } => [
+            DirKey::Dir(ScreenDir::R),
+            DirKey::Dir(ScreenDir::R),
+            DirKey::Dir(ScreenDir::U),
+            DirKey::Activate,
+        ]
+        .as_slice(),
+        Point { x: -1, y: -1 } => [
+            DirKey::Dir(ScreenDir::L),
+            DirKey::Dir(ScreenDir::U),
+            DirKey::Activate,
+        ]
+        .as_slice(),
+        Point { x: -2, y: -1 } => [
+            DirKey::Dir(ScreenDir::L),
+            DirKey::Dir(ScreenDir::L),
+            DirKey::Dir(ScreenDir::U),
+            DirKey::Activate,
+        ]
+        .as_slice(),
+        _ => {
+            panic!("unexpected move required: {delta:?}");
+        }
+    }
+}
+
+fn min_moves_for_seq(seq: &[DirKey], level: usize, max_level: usize) -> i64 {
+    // final level - work out number of inputs required - really the penultimate level,
+    // since we're going to input keys directly on the final keypad.
+    if level == max_level {
+        // every sequence for this level should return to "Activate"
+        debug_assert_eq!(seq[seq.len() - 1], DirKey::Activate);
+        return seq.len() as i64;
+
+        // let mut total_distance = 0;
+        // let mut pos = DirPad::initial_pos();
+        // for key in seq {
+        //     let next_pos = DirPad::position_for(*key);
+        //     let delta = next_pos - pos;
+        //     let manhattan_dist = delta.x.abs() + delta.y.abs();
+
+        //     total_distance += manhattan_dist;
+        //     pos = next_pos;
+        // }
+        // return total_distance;
+    }
+
+    // intermediate levels - split the sequence up into sub sequences that return
+    // to Activate, and recursively calculate distance on those.
+    let mut pos = DirPad::initial_pos();
+    let mut total_distance = 0;
+    for key in seq {
+        let next_pos = DirPad::position_for(*key);
+        let delta = next_pos - pos;
+        let sub_seq = dirkey_seq(delta);
+        let moves_required = min_moves_for_seq(sub_seq, level + 1, max_level);
+        //println!("required {moves_required} for {sub_seq:?} for {pos:?}->{next_pos:?} key {key:?}");
+
+        total_distance += moves_required;
+        pos = next_pos;
+    }
+
+    total_distance
+}
+
+fn part2_sub_paths(problem: &Problem, dirpad_depth: usize) -> Result<i64> {
+    let mut total = 0;
+
+    for codes in &problem.door_codes {
+        let moves = part2_moves_required(&codes.key_codes, dirpad_depth)?;
+        let value = moves * codes.numeric_part as i64;
+        println!("code {codes:?} -> {moves} moves -> {value}");
+        total += value;
+    }
+
+    Ok(total)
+}
+
+fn part2_moves_required(door_codes: &[NumKey], dirpad_depth: usize) -> Result<i64> {
+    println!("------- tracing paths --------------");
+
+    let min_paths_numpad = min_moves_path_numpad(door_codes);
+    //println!("{min_paths_numpad:?}");
+
+    let mut paths = vec![];
+    let mut best_len1 = usize::MAX;
+    trace_paths_rev(
+        &[],
+        &min_paths_numpad,
+        State2 {
+            num_completed: 4,
+            pos: Point::new(2, 3),
+        },
+        &mut paths,
+        &mut best_len1,
+    );
+    println!("Forward paths 1 -> {} -------", paths.len());
+
+    let mut min_cost = i64::MAX;
+    for path in &paths {
+        let mut total_cost = 0;
+        for seq in path.split_inclusive(|k| *k == DirKey::Activate) {
+            let dir_key_cost = min_moves_for_seq(seq, 1, dirpad_depth);
+            total_cost += dir_key_cost;
+        }
+        println!("{path:?} cost {total_cost}");
+
+        min_cost = min_cost.min(total_cost);
+    }
+    Ok(min_cost)
+}
+
 fn part2(problem: &Problem) -> Result<usize> {
     println!("------- tracing paths --------------");
 
@@ -594,20 +773,24 @@ fn part2(problem: &Problem) -> Result<usize> {
 
     // We go exponential complexity on the next keypad back trying to chase 68 steps.
     // Another approach is needed.
-    
+
     Ok(2)
 }
 
 fn main() -> anyhow::Result<()> {
     let problem = parse_input(INPUT)?;
 
-    let t1 = Instant::now();
+    let t = Instant::now();
     let count_part1 = part1(&problem)?;
-    println!("Part 1 result is {count_part1} (took {:?})", t1.elapsed());
+    println!("Part 1 result is {count_part1} (took {:?})", t.elapsed());
 
-    let t2 = Instant::now();
-    let count_part2 = part2(&problem)?;
-    println!("Part 2 result is {count_part2} (took {:?})", t2.elapsed());
+    let t = Instant::now();
+    let count_part2 = part2_sub_paths(&problem, 3)?;
+    println!("Part 1 alternate is {count_part2} (took {:?})", t.elapsed());
+
+    let t = Instant::now();
+    let count_part2 = part2_sub_paths(&problem, 25)?;
+    println!("Part 2 result is {count_part2} (took {:?})", t.elapsed());
 
     Ok(())
 }
@@ -641,10 +824,55 @@ mod tests {
     }
 
     #[test]
+    fn part1_alternate_correct() -> Result<()> {
+        let problem = parse_input(EXAMPLE)?;
+        let level = 3;
+        assert_eq!(
+            68,
+            part2_moves_required(&problem.door_codes[0].key_codes, level)?
+        );
+        assert_eq!(
+            60,
+            part2_moves_required(&problem.door_codes[1].key_codes, level)?
+        );
+        assert_eq!(
+            68,
+            part2_moves_required(&problem.door_codes[2].key_codes, level)?
+        );
+        assert_eq!(
+            64,
+            part2_moves_required(&problem.door_codes[3].key_codes, level)?
+        );
+        assert_eq!(
+            64,
+            part2_moves_required(&problem.door_codes[4].key_codes, level)?
+        );
+        Ok(())
+    }
+
+    //#[test]
     fn part2_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
         let count = part2(&problem)?;
         assert_eq!(count, 0);
         Ok(())
+    }
+
+    #[test]
+    fn dirkey_moves_correct() {
+        let moves = min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0, 1);
+        assert_eq!(moves, 2);
+
+        let moves = min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0, 2);
+        assert_eq!(moves, 8);
+
+        let moves = min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0, 3);
+        assert_eq!(moves, 18);
+
+        let moves = min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0, 4);
+        assert_eq!(moves, 42);
+
+        let moves = min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0, 20);
+        assert_eq!(moves, 78037588);
     }
 }

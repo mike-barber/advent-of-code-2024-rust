@@ -604,44 +604,52 @@ fn dirkey_seq(delta: Point) -> &'static [DirKey] {
     }
 }
 
-fn min_moves_for_seq(seq: &[DirKey], level: usize, max_level: usize) -> i64 {
-    // final level - work out number of inputs required - really the penultimate level,
-    // since we're going to input keys directly on the final keypad.
-    if level == max_level {
-        // every sequence for this level should return to "Activate"
-        debug_assert_eq!(seq[seq.len() - 1], DirKey::Activate);
-        return seq.len() as i64;
-
-        // let mut total_distance = 0;
-        // let mut pos = DirPad::initial_pos();
-        // for key in seq {
-        //     let next_pos = DirPad::position_for(*key);
-        //     let delta = next_pos - pos;
-        //     let manhattan_dist = delta.x.abs() + delta.y.abs();
-
-        //     total_distance += manhattan_dist;
-        //     pos = next_pos;
-        // }
-        // return total_distance;
-    }
-
-    // intermediate levels - split the sequence up into sub sequences that return
-    // to Activate, and recursively calculate distance on those.
-    let mut pos = DirPad::initial_pos();
-    let mut total_distance = 0;
-    for key in seq {
-        let next_pos = DirPad::position_for(*key);
-        let delta = next_pos - pos;
-        let sub_seq = dirkey_seq(delta);
-        let moves_required = min_moves_for_seq(sub_seq, level + 1, max_level);
-        //println!("required {moves_required} for {sub_seq:?} for {pos:?}->{next_pos:?} key {key:?}");
-
-        total_distance += moves_required;
-        pos = next_pos;
-    }
-
-    total_distance
+struct Solver {
+    max_level: usize,
+    levels_cache: Vec<FxHashMap<Box<[DirKey]>, i64>>
 }
+impl Solver {
+    fn new(max_level: usize) -> Self {
+        Solver {
+            max_level,
+            levels_cache: vec![FxHashMap::default(); max_level+1]
+        }
+    }
+
+    fn min_moves_for_seq(&mut self, seq: &[DirKey], level: usize) -> i64 {
+        // final level - work out number of inputs required - really the penultimate level,
+        // since we're going to input keys directly on the final keypad.
+        if level == self.max_level {
+            // every sequence for this level should return to "Activate"
+            debug_assert_eq!(seq[seq.len() - 1], DirKey::Activate);
+            return seq.len() as i64;
+        }
+
+        if let Some(total) = self.levels_cache[level].get(seq) {
+            return *total;
+        }
+    
+        // intermediate levels - split the sequence up into sub sequences that return
+        // to Activate, and recursively calculate distance on those.
+        let mut pos = DirPad::initial_pos();
+        let mut total_distance = 0;
+        for key in seq {
+            let next_pos = DirPad::position_for(*key);
+            let delta = next_pos - pos;
+            let sub_seq = dirkey_seq(delta);
+            let moves_required = self.min_moves_for_seq(sub_seq, level + 1);
+            //println!("required {moves_required} for {sub_seq:?} for {pos:?}->{next_pos:?} key {key:?}");
+    
+            total_distance += moves_required;
+            pos = next_pos;
+        }
+
+        self.levels_cache[level].insert(seq.into(), total_distance);
+        total_distance
+    }
+}
+
+
 
 fn part2_sub_paths(problem: &Problem, dirpad_depth: usize) -> Result<i64> {
     let mut total = 0;
@@ -658,7 +666,6 @@ fn part2_sub_paths(problem: &Problem, dirpad_depth: usize) -> Result<i64> {
 
 fn part2_moves_required(door_codes: &[NumKey], dirpad_depth: usize) -> Result<i64> {
     println!("------- tracing paths --------------");
-
     let min_paths_numpad = min_moves_path_numpad(door_codes);
     //println!("{min_paths_numpad:?}");
 
@@ -675,12 +682,13 @@ fn part2_moves_required(door_codes: &[NumKey], dirpad_depth: usize) -> Result<i6
         &mut best_len1,
     );
     println!("Forward paths 1 -> {} -------", paths.len());
-
+    
     let mut min_cost = i64::MAX;
     for path in &paths {
+        let mut solver = Solver::new(dirpad_depth);  
         let mut total_cost = 0;
         for seq in path.split_inclusive(|k| *k == DirKey::Activate) {
-            let dir_key_cost = min_moves_for_seq(seq, 1, dirpad_depth);
+            let dir_key_cost = solver.min_moves_for_seq(seq, 1);
             total_cost += dir_key_cost;
         }
         println!("{path:?} cost {total_cost}");
@@ -789,8 +797,13 @@ fn main() -> anyhow::Result<()> {
     println!("Part 1 alternate is {count_part2} (took {:?})", t.elapsed());
 
     let t = Instant::now();
-    let count_part2 = part2_sub_paths(&problem, 25)?;
+    let count_part2 = part2_sub_paths(&problem, 26)?;
     println!("Part 2 result is {count_part2} (took {:?})", t.elapsed());
+    // incorrect: 83277557903594 is too low (25)
+    // incorrect: 205777128372550 is too low (26 levels - 25+1, and correct for part1)
+    // incorrect: 508471041020264 is too high (27 levels, wrong of course)
+
+
 
     Ok(())
 }
@@ -860,19 +873,25 @@ mod tests {
 
     #[test]
     fn dirkey_moves_correct() {
-        let moves = min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0, 1);
+        
+        let mut solver = Solver::new(1);
+        let moves = solver.min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0);
         assert_eq!(moves, 2);
 
-        let moves = min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0, 2);
+        let mut solver = Solver::new(2);
+        let moves = solver.min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0);
         assert_eq!(moves, 8);
 
-        let moves = min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0, 3);
+        let mut solver = Solver::new(3);
+        let moves = solver.min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0);
         assert_eq!(moves, 18);
 
-        let moves = min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0, 4);
+        let mut solver = Solver::new(4);
+        let moves = solver.min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0);
         assert_eq!(moves, 42);
 
-        let moves = min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0, 20);
+        let mut solver = Solver::new(20);
+        let moves = solver.min_moves_for_seq(&[DirKey::Dir(ScreenDir::U)], 0);
         assert_eq!(moves, 78037588);
     }
 }

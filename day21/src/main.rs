@@ -100,24 +100,6 @@ impl DirPad {
     }
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
-struct State {
-    num_completed: usize,
-    pos_numpad: Point,
-    pos_dirpad1: Point,
-    pos_dirpad2: Point,
-}
-impl Default for State {
-    fn default() -> Self {
-        Self {
-            num_completed: 0,
-            pos_numpad: NumPad::initial_pos(),
-            pos_dirpad1: DirPad::initial_pos(),
-            pos_dirpad2: DirPad::initial_pos(),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Code {
     key_codes: Vec<NumKey>,
@@ -150,150 +132,15 @@ fn parse_input(input: &str) -> Result<Problem> {
     Ok(Problem { door_codes })
 }
 
-fn solve1(door_codes: &[NumKey]) -> FxHashMap<State, i32> {
-    let init_state = State::default();
-
-    let mut dist = FxHashMap::default();
-    let mut q = PriorityQueue::new();
-    q.push(init_state.clone(), 0);
-    dist.insert(init_state, 0);
-
-    while let Some((st, prio)) = q.pop() {
-        let cur_dist = -prio;
-        for inp in DirKey::inputs() {
-            match inp {
-                DirKey::Blank => {}
-                DirKey::Dir(d) => {
-                    let pos2 = st.pos_dirpad2 + d.into();
-                    let key2 = DIRPAD.get(pos2);
-                    if let Some(DirKey::Activate) | Some(DirKey::Dir(..)) = key2 {
-                        let alt = cur_dist + 1;
-                        let new_state = State {
-                            pos_dirpad2: pos2,
-                            ..st
-                        };
-
-                        let existing_dist = dist.get(&new_state).unwrap_or(&i32::MAX);
-                        if alt < *existing_dist {
-                            q.push(new_state.clone(), -alt);
-                            dist.insert(new_state, alt);
-                        }
-                    }
-                }
-                // pushing activate on dirpad2 -> hits key on dirpad1
-                DirKey::Activate => {
-                    if let Some(key2) = DIRPAD.get(st.pos_dirpad2) {
-                        match key2 {
-                            DirKey::Blank => {}
-                            DirKey::Dir(d) => {
-                                let pos1 = st.pos_dirpad1 + d.into();
-                                let key1 = DIRPAD.get(pos1);
-                                if let Some(DirKey::Activate) | Some(DirKey::Dir(..)) = key1 {
-                                    let alt = cur_dist + 1;
-                                    let new_state = State {
-                                        pos_dirpad1: pos1,
-                                        ..st
-                                    };
-
-                                    let existing_dist = dist.get(&new_state).unwrap_or(&i32::MAX);
-                                    if alt < *existing_dist {
-                                        q.push(new_state.clone(), -alt);
-                                        dist.insert(new_state, alt);
-                                    }
-                                }
-                            }
-                            // pushing activate on dirpad1 -> hit key on numpad
-                            DirKey::Activate => {
-                                if let Some(key1) = DIRPAD.get(st.pos_dirpad1) {
-                                    match key1 {
-                                        DirKey::Blank => {}
-                                        DirKey::Dir(d) => {
-                                            let posn = st.pos_numpad + d.into();
-                                            let keyn = NUMPAD.get(posn);
-                                            if let Some(NumKey::Activate) | Some(NumKey::Val(..)) =
-                                                keyn
-                                            {
-                                                let alt = cur_dist + 1;
-                                                let new_state = State {
-                                                    pos_numpad: posn,
-                                                    ..st
-                                                };
-
-                                                let existing_dist =
-                                                    dist.get(&new_state).unwrap_or(&i32::MAX);
-                                                if alt < *existing_dist {
-                                                    q.push(new_state.clone(), -alt);
-                                                    dist.insert(new_state, alt);
-                                                }
-                                            }
-                                        }
-                                        // pushing activate on numpad enters a number
-                                        DirKey::Activate => {
-                                            let expected = door_codes[st.num_completed];
-                                            if NUMPAD.get(st.pos_numpad) == Some(expected) {
-                                                println!(
-                                                    "Got {expected:?} for {} in {:?}",
-                                                    st.num_completed, door_codes
-                                                );
-
-                                                let alt = cur_dist + 1;
-                                                let new_state = State {
-                                                    num_completed: st.num_completed + 1,
-                                                    ..st
-                                                };
-                                                let existing_dist =
-                                                    dist.get(&new_state).unwrap_or(&i32::MAX);
-                                                if alt < *existing_dist {
-                                                    if expected == NumKey::Activate {
-                                                        // complete -- record final distance if better
-                                                        dist.insert(new_state, alt);
-                                                    } else {
-                                                        // advance to next digit and queue it for exploration
-                                                        q.push(new_state.clone(), -alt);
-                                                        dist.insert(new_state, alt);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    dist
-}
-
-fn part1(problem: &Problem) -> Result<usize> {
-    let mut total = 0;
-
-    for codes in &problem.door_codes {
-        let dist = solve1(&codes.key_codes);
-        println!("dist map size: {}", dist.len());
-        for (st, d) in dist {
-            if st.num_completed == 4 {
-                let value = d * codes.numeric_part;
-                println!("{codes:?} -> {st:?} -> {d} moves -> {value}");
-                total += value as usize;
-            }
-        }
-    }
-    Ok(total)
-}
-
 #[derive(Copy, Debug, Clone, Hash, Eq, PartialEq)]
-struct State2 {
+struct State {
     num_completed: usize,
     pos: Point,
 }
 
 #[derive(Copy, Debug, Clone, Hash, Eq, PartialEq)]
 struct StateAction {
-    num_completed: usize,
-    pos: Point,
+    state: State,
     action: DirKey,
 }
 
@@ -311,13 +158,13 @@ impl Dist {
     }
 }
 
-fn min_moves_path_numpad(codes: &[NumKey]) -> FxHashMap<State2, Dist> {
-    let init_state = State2 {
+fn min_moves_path_numpad(codes: &[NumKey]) -> FxHashMap<State, Dist> {
+    let init_state = State {
         num_completed: 0,
         pos: NumPad::initial_pos(),
     };
     let mut q = PriorityQueue::new();
-    let mut dist = FxHashMap::<State2, Dist>::default();
+    let mut dist = FxHashMap::<State, Dist>::default();
 
     q.push(init_state, 0);
     dist.insert(init_state, Dist::new(0));
@@ -331,15 +178,14 @@ fn min_moves_path_numpad(codes: &[NumKey]) -> FxHashMap<State2, Dist> {
                     let next_pos = st.pos + d.into();
                     if let Some(NumKey::Activate) | Some(NumKey::Val(..)) = NUMPAD.get(next_pos) {
                         let alt = cur_dist + 1;
-                        let next_state = State2 {
+                        let next_state = State {
                             pos: next_pos,
                             ..st
                         };
 
                         // prior state and action that went from it to here
                         let state_action = StateAction {
-                            num_completed: st.num_completed,
-                            pos: st.pos,
+                            state: st,
                             action: DirKey::Dir(d),
                         };
 
@@ -365,15 +211,14 @@ fn min_moves_path_numpad(codes: &[NumKey]) -> FxHashMap<State2, Dist> {
                         //println!("Got {expected:?} for {} in {:?}", st.num_completed, codes);
 
                         let alt = cur_dist + 1;
-                        let next_state = State2 {
+                        let next_state = State {
                             num_completed: st.num_completed + 1,
                             ..st
                         };
 
                         // prior state and action that went from it to here
                         let state_action = StateAction {
-                            num_completed: st.num_completed,
-                            pos: st.pos,
+                            state: st,
                             action: DirKey::Activate,
                         };
 
@@ -411,8 +256,8 @@ fn min_moves_path_numpad(codes: &[NumKey]) -> FxHashMap<State2, Dist> {
 
 fn trace_paths_rev(
     prior: &[DirKey],
-    dist: &FxHashMap<State2, Dist>,
-    end: State2,
+    dist: &FxHashMap<State, Dist>,
+    end: State,
     paths: &mut Vec<Vec<DirKey>>,
     best_len: &mut usize,
 ) {
@@ -436,10 +281,7 @@ fn trace_paths_rev(
         trace_paths_rev(
             &new_prior,
             dist,
-            State2 {
-                num_completed: origin.num_completed,
-                pos: origin.pos,
-            },
+            origin.state,
             paths,
             best_len,
         );
@@ -544,20 +386,20 @@ impl Solver {
     }
 }
 
-fn part2(problem: &Problem, dirpad_depth: usize) -> Result<i64> {
+fn score(problem: &Problem, dirpad_depth: usize) -> Result<i64> {
     let mut total = 0;
 
     for codes in &problem.door_codes {
-        let moves = part2_moves_required(&codes.key_codes, dirpad_depth)?;
+        let moves = moves_required(&codes.key_codes, dirpad_depth)?;
         let value = moves * codes.numeric_part as i64;
-        println!("{codes:?} -> {moves} moves -> {value}");
+        //println!("{codes:?} -> {moves} moves -> {value}");
         total += value;
     }
 
     Ok(total)
 }
 
-fn part2_moves_required(door_codes: &[NumKey], dirpad_depth: usize) -> Result<i64> {
+fn moves_required(door_codes: &[NumKey], dirpad_depth: usize) -> Result<i64> {
     println!("------- tracing paths for codes {door_codes:?} --------------");
     let min_paths_numpad = min_moves_path_numpad(door_codes);
 
@@ -566,7 +408,7 @@ fn part2_moves_required(door_codes: &[NumKey], dirpad_depth: usize) -> Result<i6
     trace_paths_rev(
         &[],
         &min_paths_numpad,
-        State2 {
+        State {
             num_completed: 4,
             pos: Point::new(2, 3),
         },
@@ -576,14 +418,14 @@ fn part2_moves_required(door_codes: &[NumKey], dirpad_depth: usize) -> Result<i6
     println!("Forward paths of equivalent length for first keypad -> count {}", paths.len());
 
     let mut min_cost = i64::MAX;
+    let mut solver = Solver::new(dirpad_depth);
     for path in &paths {
         let mut total_cost = 0;
         for seq in path.split_inclusive(|k| *k == DirKey::Activate) {
-            let mut solver = Solver::new(dirpad_depth);
             let dir_key_cost = solver.min_moves_for_seq(seq, 1);
             total_cost += dir_key_cost;
         }
-        println!("{path:?} cost {total_cost}");
+        //println!("{path:?} cost {total_cost}");
 
         min_cost = min_cost.min(total_cost);
     }
@@ -594,16 +436,16 @@ fn main() -> anyhow::Result<()> {
     let problem = parse_input(INPUT)?;
 
     let t = Instant::now();
-    let count_part1 = part1(&problem)?;
-    println!("Part 1 result is {count_part1} (took {:?})", t.elapsed());
+    let score_p1= score(&problem, 3)?;
+    println!();
+    println!("Part 1 alternate is {score_p1} (took {:?})", t.elapsed());
+    println!();
 
     let t = Instant::now();
-    let count_part2 = part2(&problem, 3)?;
-    println!("Part 1 alternate is {count_part2} (took {:?})", t.elapsed());
-
-    let t = Instant::now();
-    let count_part2 = part2(&problem, 26)?;
-    println!("Part 2 result is {count_part2} (took {:?})", t.elapsed());
+    let score_p2 = score(&problem, 26)?;
+    println!();
+    println!("Part 2 result is {score_p2} (took {:?})", t.elapsed());
+    println!();
 
     Ok(())
 }
@@ -631,15 +473,7 @@ mod tests {
     #[test]
     fn part1_correct() -> Result<()> {
         let problem = parse_input(EXAMPLE)?;
-        let count = part1(&problem)?;
-        assert_eq!(count, 126384);
-        Ok(())
-    }
-
-    #[test]
-    fn part1_alternate_correct() -> Result<()> {
-        let problem = parse_input(EXAMPLE)?;
-        let count = part2(&problem, 3)?;
+        let count = score(&problem, 3)?;
         assert_eq!(count, 126384);
         Ok(())
     }
@@ -650,23 +484,23 @@ mod tests {
         let level = 3;
         assert_eq!(
             68,
-            part2_moves_required(&problem.door_codes[0].key_codes, level)?
+            moves_required(&problem.door_codes[0].key_codes, level)?
         );
         assert_eq!(
             60,
-            part2_moves_required(&problem.door_codes[1].key_codes, level)?
+            moves_required(&problem.door_codes[1].key_codes, level)?
         );
         assert_eq!(
             68,
-            part2_moves_required(&problem.door_codes[2].key_codes, level)?
+            moves_required(&problem.door_codes[2].key_codes, level)?
         );
         assert_eq!(
             64,
-            part2_moves_required(&problem.door_codes[3].key_codes, level)?
+            moves_required(&problem.door_codes[3].key_codes, level)?
         );
         assert_eq!(
             64,
-            part2_moves_required(&problem.door_codes[4].key_codes, level)?
+            moves_required(&problem.door_codes[4].key_codes, level)?
         );
         Ok(())
     }
